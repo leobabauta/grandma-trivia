@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grandma Trivia!</title>
+
+<!-- Firebase SDK (compat for simple single-file usage) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Georgia', serif;
+  background: linear-gradient(135deg, #fce4ec, #f3e5f5, #e8eaf6);
+  min-height: 100vh;
+  color: #333;
+  overflow-x: hidden;
+}
+
+/* ===== CANVAS OVERLAY FOR CONFETTI ===== */
+#confetti-canvas {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ===== SHARED ===== */
+.screen {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+}
+.screen.active { display: flex; }
+
+h1.title {
+  font-size: 3rem;
+  color: #6a1b9a;
+  margin-bottom: 0.3rem;
+}
+.subtitle {
+  font-size: 1.2rem;
+  color: #999;
+  margin-bottom: 2rem;
+}
+
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+.card h2 {
+  font-size: 1.3rem;
+  margin-bottom: 1rem;
+  color: #6a1b9a;
+}
+
+input[type="text"], input[type="password"] {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-family: inherit;
+  margin-bottom: 0.8rem;
+}
+input:focus {
+  outline: none;
+  border-color: #ce93d8;
+}
+
+.btn {
+  padding: 0.7rem 1.8rem;
+  border: none;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.2s;
+}
+.btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.15); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { opacity: 0.5; cursor: default; transform: none; box-shadow: none; }
+
+.btn-primary {
+  background: linear-gradient(135deg, #ab47bc, #7b1fa2);
+  color: white;
+  font-size: 1.2rem;
+  padding: 0.9rem 2.5rem;
+}
+.btn-secondary {
+  background: #e0e0e0;
+  color: #555;
+}
+.btn-success {
+  background: linear-gradient(135deg, #66bb6a, #388e3c);
+  color: white;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: #7b1fa2;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 1rem;
+  font-family: inherit;
+  margin-top: 1rem;
+}
+
+.player-list {
+  list-style: none;
+  margin-top: 0.5rem;
+}
+.player-list li {
+  padding: 0.4rem 0;
+  font-size: 1.05rem;
+  color: #555;
+  border-bottom: 1px solid #f0f0f0;
+}
+.player-list li:last-child { border-bottom: none; }
+
+.error-msg {
+  color: #c62828;
+  font-size: 0.95rem;
+  margin-top: 0.5rem;
+}
+
+/* ===== GAME LAYOUT ===== */
+#game-screen {
+  padding: 0;
+  justify-content: flex-start;
+}
+#game-screen.active { display: flex; }
+
+.game-header {
+  width: 100%;
+  background: linear-gradient(135deg, #7b1fa2, #4a148c);
+  color: white;
+  padding: 0.8rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+.game-header h1 { font-size: 1.6rem; }
+
+.timer-display {
+  font-size: 1.4rem;
+  font-weight: bold;
+  min-width: 60px;
+  text-align: center;
+}
+.timer-display.urgent {
+  color: #ff8a80;
+  animation: pulse 0.5s infinite alternate;
+}
+@keyframes pulse {
+  from { opacity: 1; }
+  to { opacity: 0.5; }
+}
+
+.game-content {
+  flex: 1;
+  display: flex;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Left: question area */
+.question-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.category-badge {
+  background: #ce93d8;
+  color: white;
+  padding: 0.35rem 1.2rem;
+  border-radius: 20px;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 1.2rem;
+}
+
+.question-text {
+  font-size: 2rem;
+  text-align: center;
+  max-width: 700px;
+  line-height: 1.4;
+  margin-bottom: 2rem;
+  color: #4a148c;
+}
+
+.choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+  width: 100%;
+  max-width: 600px;
+}
+
+.choice-btn {
+  padding: 1rem 1.2rem;
+  border: 3px solid #e0e0e0;
+  border-radius: 12px;
+  background: white;
+  font-size: 1.2rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.25s;
+  text-align: center;
+}
+.choice-btn:hover:not(.locked):not(.selected) {
+  border-color: #ce93d8;
+  background: #fce4ec;
+}
+.choice-btn.locked {
+  cursor: default;
+  opacity: 0.7;
+}
+.choice-btn .letter {
+  font-weight: bold;
+  color: #7b1fa2;
+  margin-right: 0.4rem;
+}
+.choice-btn.selected {
+  border-color: #7b1fa2;
+  background: #f3e5f5;
+}
+.choice-btn.correct {
+  background: #c8e6c9;
+  border-color: #4caf50;
+  transform: scale(1.03);
+  box-shadow: 0 4px 16px rgba(76,175,80,0.25);
+}
+.choice-btn.wrong {
+  background: #ffcdd2;
+  border-color: #e57373;
+}
+
+.player-score-display {
+  margin-top: 1.5rem;
+  font-size: 1.3rem;
+  color: #6a1b9a;
+  font-weight: bold;
+}
+
+.waiting-msg {
+  margin-top: 1rem;
+  font-size: 1.1rem;
+  color: #999;
+  font-style: italic;
+}
+
+/* Right: presenter panel */
+.presenter-panel {
+  width: 320px;
+  background: white;
+  border-left: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.panel-header {
+  padding: 1rem 1.2rem;
+  background: #f3e5f5;
+  font-weight: bold;
+  color: #6a1b9a;
+  font-size: 1.1rem;
+}
+
+.correct-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 1.2rem;
+}
+
+.correct-list .correct-entry {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  animation: fadeSlideIn 0.3s ease-out;
+}
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.correct-entry .rank {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+.correct-entry .pname {
+  font-size: 1.05rem;
+  color: #333;
+}
+
+.panel-footer {
+  padding: 1rem 1.2rem;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.panel-stats {
+  font-size: 0.95rem;
+  color: #888;
+  text-align: center;
+}
+
+/* ===== RESULTS ===== */
+.final-scores {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+.final-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem 2.5rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  text-align: center;
+  min-width: 140px;
+}
+.final-card.winner {
+  border: 3px solid #ffd54f;
+  background: linear-gradient(135deg, #fff9c4, #fff);
+}
+.final-card .medal { font-size: 2.2rem; margin-bottom: 0.3rem; }
+.final-card .pname { font-size: 1.3rem; color: #6a1b9a; margin-bottom: 0.2rem; }
+.final-card .pts { font-size: 2rem; font-weight: bold; color: #7b1fa2; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  h1.title { font-size: 2rem; }
+  .question-text { font-size: 1.4rem; }
+  .choices { grid-template-columns: 1fr; }
+  .choice-btn { font-size: 1.1rem; padding: 1rem; }
+  .presenter-panel { display: none; }
+  .game-content { flex-direction: column; }
+  .question-area { padding: 1rem; }
+}
+
+.slide-in {
+  animation: slideUp 0.35s ease-out;
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(25px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+
+<!-- ========== JOIN SCREEN ========== -->
+<div id="join-screen" class="screen active">
+  <h1 class="title">Grandma Trivia!</h1>
+  <p class="subtitle">How well do you really know Grandma?</p>
+
+  <div class="card" id="join-card">
+    <h2>Join the Game</h2>
+    <input type="text" id="player-name-input" placeholder="Enter your name">
+    <button class="btn btn-primary" style="width:100%" onclick="joinGame()">Join</button>
+    <p class="error-msg" id="join-error" style="display:none"></p>
+  </div>
+
+  <button class="link-btn" onclick="showPresenterLogin()">Presenter Login</button>
+
+  <div class="card" id="presenter-card" style="display:none">
+    <h2>Presenter Login</h2>
+    <input type="password" id="presenter-pw-input" placeholder="Enter presenter password">
+    <button class="btn btn-primary" style="width:100%" onclick="presenterLogin()">Log In</button>
+    <p class="error-msg" id="presenter-error" style="display:none"></p>
+  </div>
+</div>
+
+<!-- ========== LOBBY SCREEN ========== -->
+<div id="lobby-screen" class="screen">
+  <h1 class="title">Grandma Trivia!</h1>
+  <p class="subtitle" id="lobby-subtitle">Waiting for the game to start...</p>
+
+  <div class="card">
+    <h2>Players Joined</h2>
+    <ul class="player-list" id="lobby-player-list"></ul>
+  </div>
+
+  <button class="btn btn-primary" id="start-game-btn" style="display:none" onclick="presenterStartGame()">
+    Start Game
+  </button>
+</div>
+
+<!-- ========== GAME SCREEN ========== -->
+<div id="game-screen" class="screen">
+  <div class="game-header">
+    <h1>Grandma Trivia!</h1>
+    <div style="display:flex;align-items:center;gap:1.5rem;">
+      <span id="progress-text">Q 1/10</span>
+      <div class="timer-display" id="timer-display">30s</div>
+    </div>
+  </div>
+
+  <div class="game-content">
+    <div class="question-area slide-in" id="question-area">
+      <div class="category-badge" id="q-category"></div>
+      <div class="question-text" id="q-text"></div>
+      <div class="choices" id="q-choices"></div>
+      <div class="player-score-display" id="player-score"></div>
+      <div class="waiting-msg" id="waiting-msg" style="display:none">Waiting for next question...</div>
+    </div>
+
+    <!-- Presenter-only right panel -->
+    <div class="presenter-panel" id="presenter-panel" style="display:none">
+      <div class="panel-header">Correct Answers</div>
+      <div class="correct-list" id="correct-list"></div>
+      <div class="panel-footer">
+        <div class="panel-stats" id="panel-stats">0 / 0 players correct</div>
+        <button class="btn btn-primary" style="width:100%" id="next-q-btn" onclick="presenterNextQuestion()">
+          Next Question
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== RESULTS SCREEN ========== -->
+<div id="results-screen" class="screen">
+  <h1 class="title">Game Over!</h1>
+  <p class="subtitle">Thanks for playing Grandma Trivia!</p>
+  <div class="final-scores" id="final-scores"></div>
+  <button class="btn btn-primary" onclick="resetGame()">Play Again</button>
+</div>
+
+<script>
+// =====================================================
+// CONFIGURATION — EDIT THESE!
+// =====================================================
+
+// 1. FIREBASE CONFIG
+//    Go to https://console.firebase.google.com
+//    Create a project → Add a Web App → Copy the config object here
+const FIREBASE_CONFIG = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+// 2. PRESENTER PASSWORD (change this to something your family won't guess)
+const PRESENTER_PASSWORD = "grandma";
+
+// 3. TIMER DURATION (seconds)
+const TIMER_SECONDS = 30;
+
+// =====================================================
+// TRIVIA QUESTIONS — CUSTOMIZE FOR YOUR GRANDMA!
+// answer: index 0-3 matching the choices array
+// =====================================================
+const QUESTIONS = [
+  {
+    category: "Early Life",
+    question: "Where was Grandma born?",
+    choices: ["Chicago, IL", "Manila, Philippines", "San Francisco, CA", "Honolulu, HI"],
+    answer: 1,
+    funFact: "She grew up near the bay and loved watching the fishing boats come in every morning!"
+  },
+  {
+    category: "Favorites",
+    question: "What is Grandma's favorite dessert?",
+    choices: ["Apple pie", "Chocolate cake", "Leche flan", "Ice cream"],
+    answer: 2,
+    funFact: "She learned the recipe from her own grandmother and has been making it for over 50 years!"
+  },
+  {
+    category: "Family",
+    question: "How many grandchildren does Grandma have?",
+    choices: ["5", "8", "12", "15"],
+    answer: 2,
+    funFact: "And she remembers every single birthday without looking at a calendar!"
+  },
+  {
+    category: "Adventures",
+    question: "What was Grandma's first job?",
+    choices: ["Teacher", "Nurse", "Seamstress", "Store clerk"],
+    answer: 0,
+    funFact: "She taught elementary school for 10 years before switching careers."
+  },
+  {
+    category: "Favorites",
+    question: "What is Grandma's favorite TV show?",
+    choices: ["Jeopardy!", "The Price is Right", "Wheel of Fortune", "Golden Girls"],
+    answer: 3,
+    funFact: "She says she's just like Sophia — and honestly, she's not wrong!"
+  },
+  {
+    category: "Traditions",
+    question: "What does Grandma always bring to family gatherings?",
+    choices: ["Her famous lumpia", "A big salad", "Homemade bread", "A store-bought cake"],
+    answer: 0,
+    funFact: "The family record is 200 lumpia made in one afternoon. Everyone helps roll!"
+  },
+  {
+    category: "Early Life",
+    question: "What year did Grandma move to the United States?",
+    choices: ["1960", "1968", "1975", "1982"],
+    answer: 1,
+    funFact: "She arrived with just two suitcases and a heart full of dreams."
+  },
+  {
+    category: "Quirks",
+    question: "What does Grandma always say when you leave her house?",
+    choices: ["\"Drive safe!\"", "\"Did you eat enough?\"", "\"Take some food home!\"", "All of the above"],
+    answer: 3,
+    funFact: "In that exact order, every single time. It's basically a ritual."
+  },
+  {
+    category: "Family",
+    question: "What is Grandma's secret ingredient in her cooking?",
+    choices: ["MSG", "Love", "Fish sauce", "All three — she'll never tell"],
+    answer: 3,
+    funFact: "If you ask her, she'll just smile and say 'a little bit of everything.'"
+  },
+  {
+    category: "Adventures",
+    question: "What hobby did Grandma pick up in her 60s?",
+    choices: ["Gardening", "Karaoke", "Zumba", "Online shopping"],
+    answer: 1,
+    funFact: "Her go-to song is 'My Way' by Frank Sinatra, and she ALWAYS brings the house down."
+  }
+];
+
+// =====================================================
+// APP STATE
+// =====================================================
+let db;
+let myPlayerId = null;
+let isPresenter = false;
+let timerInterval = null;
+let serverTimeOffset = 0;
+const LETTERS = ['A', 'B', 'C', 'D'];
+
+// =====================================================
+// FIREBASE INIT
+// =====================================================
+function initFirebase() {
+  firebase.initializeApp(FIREBASE_CONFIG);
+  db = firebase.database();
+
+  // Track server time offset for timer sync
+  db.ref('.info/serverTimeOffset').on('value', snap => {
+    serverTimeOffset = snap.val() || 0;
+  });
+}
+
+function serverNow() {
+  return Date.now() + serverTimeOffset;
+}
+
+// =====================================================
+// SCREENS
+// =====================================================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// =====================================================
+// JOIN FLOW
+// =====================================================
+function showPresenterLogin() {
+  const card = document.getElementById('presenter-card');
+  card.style.display = card.style.display === 'none' ? 'block' : 'none';
+}
+
+function joinGame() {
+  const name = document.getElementById('player-name-input').value.trim();
+  if (!name) {
+    showError('join-error', 'Please enter your name.');
+    return;
+  }
+
+  const ref = db.ref('players').push();
+  myPlayerId = ref.key;
+  ref.set({ name, score: 0 });
+
+  // Remove player on disconnect
+  ref.onDisconnect().remove();
+
+  localStorage.setItem('gt_playerId', myPlayerId);
+  localStorage.setItem('gt_playerName', name);
+
+  enterLobby();
+}
+
+function presenterLogin() {
+  const pw = document.getElementById('presenter-pw-input').value;
+  if (pw !== PRESENTER_PASSWORD) {
+    showError('presenter-error', 'Wrong password.');
+    return;
+  }
+  isPresenter = true;
+  enterLobby();
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 3000);
+}
+
+// =====================================================
+// LOBBY
+// =====================================================
+function enterLobby() {
+  showScreen('lobby-screen');
+
+  if (isPresenter) {
+    document.getElementById('lobby-subtitle').textContent = 'You are the presenter. Start when everyone has joined!';
+    document.getElementById('start-game-btn').style.display = 'inline-block';
+  } else {
+    document.getElementById('lobby-subtitle').textContent = 'Waiting for the presenter to start the game...';
+    document.getElementById('start-game-btn').style.display = 'none';
+  }
+
+  // Listen for players
+  db.ref('players').on('value', snap => {
+    const players = snap.val() || {};
+    const list = document.getElementById('lobby-player-list');
+    list.innerHTML = '';
+    Object.values(players).forEach(p => {
+      const li = document.createElement('li');
+      li.textContent = p.name;
+      list.appendChild(li);
+    });
+  });
+
+  // Listen for game state changes
+  db.ref('gameState').on('value', snap => {
+    const state = snap.val();
+    if (state === 'playing') {
+      enterGame();
+    } else if (state === 'finished') {
+      showResults();
+    }
+  });
+}
+
+// =====================================================
+// PRESENTER: START GAME
+// =====================================================
+function presenterStartGame() {
+  db.ref('gameState').set('playing');
+  db.ref('currentQuestion').set(0);
+  db.ref('questionStartedAt').set(firebase.database.ServerValue.TIMESTAMP);
+  db.ref('answers').remove();
+}
+
+// =====================================================
+// GAME
+// =====================================================
+function enterGame() {
+  showScreen('game-screen');
+
+  if (isPresenter) {
+    document.getElementById('presenter-panel').style.display = 'flex';
+  }
+
+  // Listen for current question changes
+  db.ref('currentQuestion').on('value', snap => {
+    const qIndex = snap.val();
+    if (qIndex !== null && qIndex !== undefined) {
+      renderQuestion(qIndex);
+    }
+  });
+
+  // Listen for question start time (for timer)
+  db.ref('questionStartedAt').on('value', snap => {
+    const startTime = snap.val();
+    if (startTime) {
+      startTimer(startTime);
+    }
+  });
+
+  // Listen for answers (presenter view)
+  if (isPresenter) {
+    db.ref('answers').on('value', snap => {
+      updatePresenterPanel(snap.val());
+    });
+  }
+}
+
+function renderQuestion(qIndex) {
+  if (qIndex >= QUESTIONS.length) {
+    db.ref('gameState').set('finished');
+    return;
+  }
+
+  const q = QUESTIONS[qIndex];
+  document.getElementById('progress-text').textContent = `Q ${qIndex + 1}/${QUESTIONS.length}`;
+  document.getElementById('q-category').textContent = q.category;
+  document.getElementById('q-text').textContent = q.question;
+  document.getElementById('waiting-msg').style.display = 'none';
+
+  const choicesEl = document.getElementById('q-choices');
+  choicesEl.innerHTML = '';
+  q.choices.forEach((c, i) => {
+    const btn = document.createElement('div');
+    btn.className = 'choice-btn';
+    btn.id = `choice-${i}`;
+    btn.innerHTML = `<span class="letter">${LETTERS[i]}.</span> ${escapeHtml(c)}`;
+
+    if (!isPresenter) {
+      btn.addEventListener('click', () => submitAnswer(qIndex, i));
+    }
+    choicesEl.appendChild(btn);
+  });
+
+  // Update score display for player
+  if (!isPresenter && myPlayerId) {
+    db.ref(`players/${myPlayerId}/score`).once('value', snap => {
+      const score = snap.val() || 0;
+      document.getElementById('player-score').textContent = `Your Score: ${score}`;
+    });
+  } else {
+    document.getElementById('player-score').textContent = '';
+  }
+
+  // Clear presenter panel
+  if (isPresenter) {
+    document.getElementById('correct-list').innerHTML = '';
+    document.getElementById('panel-stats').textContent = '0 players correct';
+  }
+
+  // Animate
+  const area = document.getElementById('question-area');
+  area.classList.remove('slide-in');
+  void area.offsetWidth;
+  area.classList.add('slide-in');
+}
+
+// =====================================================
+// PLAYER: SUBMIT ANSWER
+// =====================================================
+function submitAnswer(qIndex, choiceIndex) {
+  // Check if already answered this question
+  const btn = document.getElementById(`choice-${choiceIndex}`);
+  if (btn.classList.contains('locked') || btn.classList.contains('selected')) return;
+
+  // Check if any choice is already selected (already answered)
+  const allBtns = document.querySelectorAll('.choice-btn');
+  for (const b of allBtns) {
+    if (b.classList.contains('selected') || b.classList.contains('correct') || b.classList.contains('wrong')) return;
+  }
+
+  // Check timer
+  const timerEl = document.getElementById('timer-display');
+  if (timerEl.textContent === "Time!") return;
+
+  const q = QUESTIONS[qIndex];
+  const isCorrect = choiceIndex === q.answer;
+
+  // Lock all buttons
+  allBtns.forEach(b => b.classList.add('locked'));
+
+  // Mark selected
+  btn.classList.add('selected');
+
+  if (isCorrect) {
+    btn.classList.remove('selected');
+    btn.classList.add('correct');
+
+    // Update score in Firebase
+    db.ref(`players/${myPlayerId}/score`).transaction(score => (score || 0) + 1);
+
+    // Update local display
+    db.ref(`players/${myPlayerId}/score`).once('value', snap => {
+      document.getElementById('player-score').textContent = `Your Score: ${snap.val()}`;
+    });
+
+    // Trigger confetti from the correct answer button
+    launchConfetti(btn);
+  } else {
+    btn.classList.add('wrong');
+    // Highlight correct answer
+    document.getElementById(`choice-${q.answer}`).classList.add('correct');
+  }
+
+  // Record answer in Firebase (for presenter to see)
+  db.ref(`answers/${qIndex}/${myPlayerId}`).set({
+    name: localStorage.getItem('gt_playerName'),
+    choice: choiceIndex,
+    correct: isCorrect,
+    time: firebase.database.ServerValue.TIMESTAMP
+  });
+}
+
+// =====================================================
+// TIMER
+// =====================================================
+function startTimer(questionStartTime) {
+  clearInterval(timerInterval);
+
+  const timerEl = document.getElementById('timer-display');
+  timerEl.classList.remove('urgent');
+
+  function tick() {
+    const elapsed = (serverNow() - questionStartTime) / 1000;
+    const remaining = Math.max(0, TIMER_SECONDS - elapsed);
+    const secs = Math.ceil(remaining);
+
+    timerEl.textContent = remaining > 0 ? `${secs}s` : "Time!";
+
+    if (secs <= 10 && secs > 0) {
+      timerEl.classList.add('urgent');
+    } else {
+      timerEl.classList.remove('urgent');
+    }
+
+    if (remaining <= 0) {
+      clearInterval(timerInterval);
+      lockAllChoices();
+    }
+  }
+
+  tick();
+  timerInterval = setInterval(tick, 200);
+}
+
+function lockAllChoices() {
+  document.querySelectorAll('.choice-btn').forEach(b => b.classList.add('locked'));
+  if (!isPresenter) {
+    // Show correct answer if player hasn't answered
+    const qIndex = getCurrentQuestionIndex();
+    if (qIndex !== null) {
+      const q = QUESTIONS[qIndex];
+      const correctBtn = document.getElementById(`choice-${q.answer}`);
+      if (!document.querySelector('.choice-btn.selected') && !document.querySelector('.choice-btn.correct')) {
+        correctBtn.classList.add('correct');
+      }
+    }
+    document.getElementById('waiting-msg').style.display = 'block';
+  }
+}
+
+function getCurrentQuestionIndex() {
+  const text = document.getElementById('progress-text').textContent;
+  const match = text.match(/Q (\d+)/);
+  return match ? parseInt(match[1]) - 1 : null;
+}
+
+// =====================================================
+// PRESENTER PANEL: CORRECT ANSWERS
+// =====================================================
+function updatePresenterPanel(allAnswers) {
+  const qIndex = getCurrentQuestionIndex();
+  if (qIndex === null || !allAnswers || !allAnswers[qIndex]) {
+    document.getElementById('correct-list').innerHTML = '';
+    document.getElementById('panel-stats').textContent = '0 players correct';
+    return;
+  }
+
+  const qAnswers = allAnswers[qIndex];
+  const correctEntries = [];
+  let totalAnswered = 0;
+
+  Object.values(qAnswers).forEach(a => {
+    totalAnswered++;
+    if (a.correct) {
+      correctEntries.push({ name: a.name, time: a.time });
+    }
+  });
+
+  // Sort by time (earliest first)
+  correctEntries.sort((a, b) => a.time - b.time);
+
+  const listEl = document.getElementById('correct-list');
+  listEl.innerHTML = '';
+  correctEntries.forEach((entry, i) => {
+    const div = document.createElement('div');
+    div.className = 'correct-entry';
+    div.innerHTML = `
+      <span class="rank">${i + 1}</span>
+      <span class="pname">${escapeHtml(entry.name)}</span>
+    `;
+    listEl.appendChild(div);
+  });
+
+  // Get total player count
+  db.ref('players').once('value', snap => {
+    const totalPlayers = snap.numChildren();
+    document.getElementById('panel-stats').textContent =
+      `${correctEntries.length} / ${totalPlayers} players correct`;
+  });
+}
+
+// =====================================================
+// PRESENTER: NEXT QUESTION
+// =====================================================
+function presenterNextQuestion() {
+  db.ref('currentQuestion').once('value', snap => {
+    const next = (snap.val() || 0) + 1;
+    if (next >= QUESTIONS.length) {
+      db.ref('gameState').set('finished');
+    } else {
+      db.ref('currentQuestion').set(next);
+      db.ref('questionStartedAt').set(firebase.database.ServerValue.TIMESTAMP);
+    }
+  });
+}
+
+// =====================================================
+// RESULTS
+// =====================================================
+function showResults() {
+  clearInterval(timerInterval);
+  showScreen('results-screen');
+
+  db.ref('players').once('value', snap => {
+    const players = snap.val() || {};
+    const sorted = Object.values(players).sort((a, b) => (b.score || 0) - (a.score || 0));
+    const medals = ['\u{1F947}', '\u{1F948}', '\u{1F949}'];
+
+    document.getElementById('final-scores').innerHTML = sorted.map((p, i) =>
+      `<div class="final-card ${i === 0 ? 'winner' : ''}">
+        <div class="medal">${medals[i] || ''}</div>
+        <div class="pname">${escapeHtml(p.name)}</div>
+        <div class="pts">${p.score || 0} pts</div>
+      </div>`
+    ).join('');
+  });
+}
+
+function resetGame() {
+  if (isPresenter) {
+    db.ref('gameState').set('lobby');
+    db.ref('currentQuestion').set(0);
+    db.ref('answers').remove();
+    // Reset all player scores
+    db.ref('players').once('value', snap => {
+      const updates = {};
+      snap.forEach(child => {
+        updates[`${child.key}/score`] = 0;
+      });
+      db.ref('players').update(updates);
+    });
+  }
+  location.reload();
+}
+
+// =====================================================
+// CONFETTI SYSTEM
+// =====================================================
+const confettiCanvas = document.getElementById('confetti-canvas');
+const confettiCtx = confettiCanvas.getContext('2d');
+let confettiParticles = [];
+let confettiAnimating = false;
+
+function resizeConfettiCanvas() {
+  confettiCanvas.width = window.innerWidth;
+  confettiCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeConfettiCanvas);
+resizeConfettiCanvas();
+
+function launchConfetti(originElement) {
+  const rect = originElement.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+
+  const colors = [
+    '#7b1fa2', '#ab47bc', '#ce93d8',  // purples
+    '#ffd54f', '#ffb300', '#ff8f00',  // golds
+    '#66bb6a', '#43a047',             // greens
+    '#ef5350', '#e91e63',             // pinks/reds
+    '#42a5f5',                        // blue
+  ];
+
+  for (let i = 0; i < 80; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 4 + Math.random() * 8;
+    confettiParticles.push({
+      x: cx,
+      y: cy,
+      vx: Math.cos(angle) * speed * (0.5 + Math.random()),
+      vy: Math.sin(angle) * speed * (0.5 + Math.random()) - 6,
+      size: 4 + Math.random() * 6,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rotation: Math.random() * 360,
+      rotSpeed: (Math.random() - 0.5) * 12,
+      life: 1,
+      decay: 0.008 + Math.random() * 0.008,
+      shape: Math.random() > 0.5 ? 'rect' : 'circle',
+    });
+  }
+
+  if (!confettiAnimating) {
+    confettiAnimating = true;
+    animateConfetti();
+  }
+}
+
+function animateConfetti() {
+  confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+
+  confettiParticles = confettiParticles.filter(p => p.life > 0);
+
+  if (confettiParticles.length === 0) {
+    confettiAnimating = false;
+    return;
+  }
+
+  confettiParticles.forEach(p => {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.25; // gravity
+    p.vx *= 0.99;
+    p.rotation += p.rotSpeed;
+    p.life -= p.decay;
+
+    confettiCtx.save();
+    confettiCtx.translate(p.x, p.y);
+    confettiCtx.rotate((p.rotation * Math.PI) / 180);
+    confettiCtx.globalAlpha = Math.max(0, p.life);
+    confettiCtx.fillStyle = p.color;
+
+    if (p.shape === 'rect') {
+      confettiCtx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+    } else {
+      confettiCtx.beginPath();
+      confettiCtx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+      confettiCtx.fill();
+    }
+
+    confettiCtx.restore();
+  });
+
+  requestAnimationFrame(animateConfetti);
+}
+
+// =====================================================
+// HELPERS
+// =====================================================
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// Enter key support
+document.getElementById('player-name-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') joinGame();
+});
+document.getElementById('presenter-pw-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') presenterLogin();
+});
+
+// =====================================================
+// BOOT
+// =====================================================
+initFirebase();
+</script>
+
+</body>
+</html>

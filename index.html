@@ -177,6 +177,48 @@ input:focus {
   flex-shrink: 0;
 }
 .player-list li:last-child { border-bottom: none; }
+.player-list .remove-player {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--coral);
+  color: var(--coral);
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+.player-list .remove-player:hover { opacity: 1; }
+
+/* Reset overlay */
+.reset-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(20,31,56,0.9);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.reset-dialog {
+  background: var(--navy-light);
+  border: 1px solid var(--blue);
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  max-width: 400px;
+}
+.reset-dialog p {
+  font-size: 1.1rem;
+  color: var(--white);
+  margin-bottom: 1.5rem;
+}
+.reset-dialog .btn { margin: 0 0.4rem; }
 
 .error-msg {
   color: var(--coral);
@@ -760,7 +802,7 @@ input:focus {
     <div class="fancy-title" style="font-size:2.4rem;margin-bottom:0;letter-spacing:0.1em;line-height:1;" aria-label="You Don't Know Grandma">
       <span class="c-gold">Y</span><span class="c-coral filled">o</span><span class="c-white">u</span><span class="space"> </span><span class="c-blue filled">D</span><span class="c-gold">o</span><span class="c-coral filled">n</span><span class="c-white">'</span><span class="c-blue">t</span><span class="space"> </span><span class="c-gold filled">K</span><span class="c-coral">n</span><span class="c-white filled">o</span><span class="c-blue">w</span><span class="space"> </span><span class="c-gold">G</span><span class="c-coral filled">r</span><span class="c-white">a</span><span class="c-blue filled">n</span><span class="c-gold">d</span><span class="c-coral filled">m</span><span class="c-white">a</span>
     </div>
-    <span id="progress-text">Q 1/10</span>
+    <span id="progress-text" onclick="presenterResetPrompt()">Q 1/10</span>
   </div>
 
   <div class="game-content">
@@ -1075,8 +1117,9 @@ function showPresenterLogin() {
 
 function joinGame() {
   const name = document.getElementById('player-name-input').value.trim();
-  if (!name) {
-    showError('join-error', 'Please enter your name.');
+  const nameError = validateName(name);
+  if (nameError) {
+    showError('join-error', nameError);
     return;
   }
 
@@ -1129,9 +1172,16 @@ function enterLobby() {
     const players = snap.val() || {};
     const list = document.getElementById('lobby-player-list');
     list.innerHTML = '';
-    Object.values(players).forEach(p => {
+    Object.entries(players).forEach(([id, p]) => {
       const li = document.createElement('li');
       li.textContent = p.name;
+      if (isPresenter) {
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-player';
+        removeBtn.textContent = 'remove';
+        removeBtn.onclick = () => db.ref(`players/${id}`).remove();
+        li.appendChild(removeBtn);
+      }
       list.appendChild(li);
     });
   });
@@ -1531,6 +1581,62 @@ function presenterPrevQuestion() {
       db.ref('questionStartedAt').set(firebase.database.ServerValue.TIMESTAMP);
     }
   });
+}
+
+function presenterResetPrompt() {
+  if (!isPresenter) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'reset-overlay';
+  overlay.innerHTML = `
+    <div class="reset-dialog">
+      <p>Reset the game? This will send everyone back to the lobby and clear all scores.</p>
+      <button class="btn btn-secondary" onclick="this.closest('.reset-overlay').remove()">Cancel</button>
+      <button class="btn btn-primary" style="background:var(--coral);" onclick="confirmReset()">Reset Game</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+function confirmReset() {
+  document.querySelector('.reset-overlay')?.remove();
+  db.ref('gameState').set('lobby');
+  db.ref('currentQuestion').set(0);
+  db.ref('answers').remove();
+  db.ref('questionOrder').remove();
+  db.ref('players').once('value', snap => {
+    const updates = {};
+    snap.forEach(child => {
+      updates[`${child.key}/score`] = 0;
+    });
+    db.ref('players').update(updates);
+  });
+  location.reload();
+}
+
+// =====================================================
+// NAME VALIDATION
+// =====================================================
+const BLOCKED_WORDS = [
+  'fuck','shit','ass','damn','bitch','dick','cock','pussy','cunt',
+  'bastard','slut','whore','crap','piss','hell','butt','fart',
+  'boob','tit','penis','vagina','anus','douche','wank','twat',
+  'nazi','hitler','kill','die','rape','retard','stupid','idiot',
+  'dumb','ugly','fat','loser'
+];
+
+function validateName(name) {
+  if (!name) return 'Please enter your name.';
+  if (name.length < 2) return 'Name must be at least 2 characters.';
+  if (name.length > 20) return 'Name must be 20 characters or less.';
+  if (!/^[a-zA-Z0-9\s\-'.]+$/.test(name)) return 'Please use only letters, numbers, and basic punctuation.';
+
+  const lower = name.toLowerCase().replace(/[^a-z]/g, '');
+  for (const word of BLOCKED_WORDS) {
+    if (lower.includes(word)) {
+      return "Let's keep the names family-friendly! Try again.";
+    }
+  }
+  return null;
 }
 
 // =====================================================

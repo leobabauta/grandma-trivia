@@ -246,6 +246,48 @@ input:focus {
 .commentary.visible {
   opacity: 1;
 }
+
+/* ===== FLOATING PLAYER MESSAGE ===== */
+.float-msg-container {
+  position: fixed;
+  right: 2rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+  pointer-events: none;
+}
+.float-msg {
+  font-size: 1.3rem;
+  font-weight: 700;
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  white-space: nowrap;
+  animation: floatUp 3s ease-out forwards;
+  opacity: 0;
+}
+.float-msg.correct-msg {
+  color: var(--gold);
+  background: rgba(232,168,56,0.12);
+  border: 1px solid rgba(232,168,56,0.3);
+}
+.float-msg.wrong-msg {
+  color: var(--coral);
+  background: rgba(224,85,85,0.12);
+  border: 1px solid rgba(224,85,85,0.3);
+}
+@keyframes floatUp {
+  0% { opacity: 0; transform: translateY(20px); }
+  15% { opacity: 1; transform: translateY(0); }
+  70% { opacity: 1; transform: translateY(-30px); }
+  100% { opacity: 0; transform: translateY(-60px); }
+}
+@media (max-width: 768px) {
+  .float-msg-container {
+    right: 1rem;
+    top: 40%;
+  }
+  .float-msg { font-size: 1rem; padding: 0.6rem 1rem; }
+}
 @keyframes pulse {
   from { opacity: 1; }
   to { opacity: 0.4; }
@@ -330,11 +372,12 @@ input:focus {
   background: rgba(232,168,56,0.15);
 }
 .choice-btn.correct {
-  background: rgba(126,184,218,0.15);
-  border-color: var(--blue);
+  background: rgba(232,168,56,0.2);
+  border-color: var(--gold);
   border-width: 2px;
   transform: scale(1.03);
-  box-shadow: 0 0 20px rgba(126,184,218,0.2);
+  box-shadow: 0 0 20px rgba(232,168,56,0.25);
+  color: var(--gold);
 }
 .choice-btn.correct .letter { color: var(--gold); }
 .choice-btn.wrong {
@@ -636,6 +679,7 @@ input:focus {
 <body>
 
 <canvas id="confetti-canvas"></canvas>
+<div class="float-msg-container" id="float-msg-container"></div>
 
 <!-- ========== DECORATIVE SHAPES ========== -->
 <div class="decorations" aria-hidden="true">
@@ -713,7 +757,7 @@ input:focus {
 <!-- ========== GAME SCREEN ========== -->
 <div id="game-screen" class="screen">
   <div class="game-header">
-    <div class="fancy-title" style="font-size:1.8rem;margin-bottom:0;letter-spacing:0.1em;line-height:1;" aria-label="You Don't Know Grandma">
+    <div class="fancy-title" style="font-size:2.4rem;margin-bottom:0;letter-spacing:0.1em;line-height:1;" aria-label="You Don't Know Grandma">
       <span class="c-gold">Y</span><span class="c-coral filled">o</span><span class="c-white">u</span><span class="space"> </span><span class="c-blue filled">D</span><span class="c-gold">o</span><span class="c-coral filled">n</span><span class="c-white">'</span><span class="c-blue">t</span><span class="space"> </span><span class="c-gold filled">K</span><span class="c-coral">n</span><span class="c-white filled">o</span><span class="c-blue">w</span><span class="space"> </span><span class="c-gold">G</span><span class="c-coral filled">r</span><span class="c-white">a</span><span class="c-blue filled">n</span><span class="c-gold">d</span><span class="c-coral filled">m</span><span class="c-white">a</span>
     </div>
     <span id="progress-text">Q 1/10</span>
@@ -1257,10 +1301,12 @@ function submitAnswer(qIndex, choiceIndex) {
 
     // Trigger confetti from the correct answer button
     launchConfetti(btn);
+    showFloatMsg(true);
   } else {
     btn.classList.add('wrong');
     // Highlight correct answer
     document.getElementById(`choice-${q.answer}`).classList.add('correct');
+    showFloatMsg(false);
   }
 
   // Record answer in Firebase (for presenter to see)
@@ -1326,6 +1372,10 @@ function lockAllChoices() {
 
   if (!isPresenter) {
     document.getElementById('waiting-msg').style.display = 'block';
+    // If player didn't answer at all, show a tease
+    if (!document.querySelector('.choice-btn.selected') && !document.querySelector('.choice-btn.wrong')) {
+      showFloatMsg(false);
+    }
   }
 
   // Show commentary based on how people did
@@ -1584,6 +1634,81 @@ function resetGame() {
     });
   }
   location.reload();
+}
+
+// =====================================================
+// FLOATING PLAYER MESSAGES
+// =====================================================
+const CORRECT_MSGS = [
+  "You DO know Grandma!",
+  "Marion would be proud!",
+  "Nailed it!",
+  "Big brain energy!",
+  "Grandma's favorite, clearly.",
+  "Someone's been paying attention!",
+  "Look at you go!",
+  "Were you taking notes at Thanksgiving?",
+  "Genius-level grandma knowledge!",
+  "Gold star for you!",
+  "You must be the favorite grandchild.",
+  "That's the Marion spirit!",
+  "Absolutely crushed it!",
+  "Grandma knowledge: elite.",
+  "Did Marion whisper that to you?",
+  "Family historian right here!",
+  "Too easy for you, huh?",
+  "You clearly visited enough.",
+  "Someone ate their 2 cookies!",
+  "A true Marion Murphy scholar!",
+];
+
+const WRONG_MSGS = [
+  "Grandma is side-eyeing you.",
+  "Did you even GO to family dinners?",
+  "Marion would like a word...",
+  "Yikes. More family visits needed.",
+  "That was... not it.",
+  "Grandma just sighed from heaven.",
+  "Were you adopted? Just kidding.",
+  "Better luck next question!",
+  "You clearly need more cookie time.",
+  "Thanksgiving attendance: questionable.",
+  "Phone home more often!",
+  "The family group chat is judging you.",
+  "You might want to sit down for this.",
+  "Ooof. That one hurt.",
+  "Did you guess with your eyes closed?",
+  "Marion is shaking her head.",
+  "Someone skipped the family reunions.",
+  "Not your finest moment.",
+  "The cousins are laughing at you.",
+  "You DON'T know Grandma!",
+];
+
+let lastCorrectIdx = -1;
+let lastWrongIdx = -1;
+
+function showFloatMsg(isCorrect) {
+  if (isPresenter) return;
+  const container = document.getElementById('float-msg-container');
+  const msgs = isCorrect ? CORRECT_MSGS : WRONG_MSGS;
+
+  // Pick a random message that isn't the same as last time
+  let idx;
+  const lastIdx = isCorrect ? lastCorrectIdx : lastWrongIdx;
+  do {
+    idx = Math.floor(Math.random() * msgs.length);
+  } while (idx === lastIdx && msgs.length > 1);
+  if (isCorrect) lastCorrectIdx = idx; else lastWrongIdx = idx;
+
+  const div = document.createElement('div');
+  div.className = `float-msg ${isCorrect ? 'correct-msg' : 'wrong-msg'}`;
+  div.textContent = msgs[idx];
+  container.innerHTML = '';
+  container.appendChild(div);
+
+  // Remove after animation
+  setTimeout(() => { if (div.parentNode) div.remove(); }, 3200);
 }
 
 // =====================================================

@@ -1296,12 +1296,10 @@ function enterGame() {
       renderScoreboard(snap.val());
     });
 
-    // Listen for answers (presenter view)
-    if (isPresenter) {
-      db.ref('answers').on('value', snap => {
-        updatePresenterPanel(snap.val());
-      });
-    }
+    // Listen for answers (visible to all players)
+    db.ref('answers').on('value', snap => {
+      updatePresenterPanel(snap.val());
+    });
   });
 }
 

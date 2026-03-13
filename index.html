@@ -622,7 +622,7 @@ input:focus {
   .question-text { font-size: 1.4rem; }
   .choices { grid-template-columns: 1fr; }
   .choice-btn { font-size: 1.1rem; padding: 1rem; }
-  .presenter-panel { display: none; }
+  .presenter-panel { width: 100%; border-left: none; border-top: 1px solid rgba(126,184,218,0.2); max-height: 200px; }
   .game-content { flex-direction: column; }
   .question-area { padding: 1rem; }
 }
@@ -630,8 +630,8 @@ input:focus {
 /* ===== GRANDMA PHOTO CUTOUT ===== */
 .grandma-photo {
   display: none;
-  width: 130px;
-  height: 130px;
+  width: 180px;
+  height: 180px;
   border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
@@ -657,8 +657,8 @@ input:focus {
 }
 @media (max-width: 768px) {
   .grandma-photo {
-    width: 80px;
-    height: 80px;
+    width: 120px;
+    height: 120px;
   }
 }
 
@@ -864,7 +864,7 @@ input:focus {
       <div class="waiting-msg" id="waiting-msg" style="display:none">Waiting for next question...</div>
     </div>
 
-    <!-- Presenter-only right panel -->
+    <!-- Right panel: correct answers (visible to all) -->
     <div class="presenter-panel" id="presenter-panel" style="display:none">
       <div class="panel-header">Correct Answers</div>
       <div class="correct-list" id="correct-list"></div>
@@ -1206,7 +1206,7 @@ function enterLobby() {
   showScreen('lobby-screen');
 
   if (isPresenter) {
-    document.getElementById('lobby-subtitle').textContent = 'You are the presenter. Start when everyone has joined!';
+    document.getElementById('lobby-subtitle').textContent = 'The trivia game for those who love Marion Murphy. Starting soon!';
     document.getElementById('start-game-btn').style.display = 'inline-block';
   } else {
     document.getElementById('lobby-subtitle').textContent = 'Waiting for the presenter to start the game...';
@@ -1266,8 +1266,9 @@ function presenterStartGame() {
 function enterGame() {
   showScreen('game-screen');
 
-  if (isPresenter) {
-    document.getElementById('presenter-panel').style.display = 'flex';
+  document.getElementById('presenter-panel').style.display = 'flex';
+  if (!isPresenter) {
+    document.querySelector('.panel-footer').style.display = 'none';
   }
 
   // Load question order first, then set up listeners
@@ -1668,7 +1669,7 @@ function confirmReset() {
     });
     db.ref('players').update(updates);
   });
-  location.reload();
+  showScreen('lobby-screen');
 }
 
 // =====================================================
@@ -2023,6 +2024,9 @@ function playSound(type) {
   const sound = type === 'cheer' ? cheerSound : booSound;
   sound.currentTime = 0;
   sound.play().catch(() => {});
+  if (type === 'cheer') {
+    setTimeout(() => { sound.pause(); sound.currentTime = 0; }, 3000);
+  }
 }
 
 // =====================================================

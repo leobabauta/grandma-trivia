@@ -944,6 +944,7 @@ input:focus {
     </div>
     <div style="display:flex;align-items:center;gap:0.8rem;">
       <span id="progress-text" onclick="presenterResetPrompt()">Q 1/10</span>
+      <button class="gear-btn" id="mute-btn" style="display:none" onclick="toggleMute()" title="Mute/Unmute sounds for all">&#128266;</button>
       <button class="gear-btn" id="gear-btn" style="display:none" onclick="openManagePlayers()" title="Manage Players">&#9881;</button>
     </div>
   </div>
@@ -1235,6 +1236,14 @@ function initFirebase() {
   db.ref('.info/serverTimeOffset').on('value', snap => {
     serverTimeOffset = snap.val() || 0;
   });
+
+  // Listen for global mute state
+  db.ref('muted').on('value', snap => {
+    globalMuted = !!snap.val();
+    const muteBtn = document.getElementById('mute-btn');
+    if (muteBtn) muteBtn.textContent = globalMuted ? '\u{1F507}' : '\u{1F50A}';
+    if (globalMuted) stopTriviaMusic();
+  });
 }
 
 function serverNow() {
@@ -1366,6 +1375,7 @@ function enterGame() {
   document.getElementById('presenter-panel').style.display = 'flex';
   if (isPresenter) {
     document.getElementById('gear-btn').style.display = 'inline-block';
+    document.getElementById('mute-btn').style.display = 'inline-block';
   } else {
     document.querySelector('.panel-footer').style.display = 'none';
   }
@@ -2160,6 +2170,7 @@ const booSound = new Audio('audio/boo.mp3');
 booSound.volume = 0.6;
 
 let audioUnlocked = false;
+let globalMuted = false;
 
 // Browsers require a user gesture before playing audio.
 // Unlock on first click anywhere on the page.
@@ -2174,7 +2185,13 @@ function unlockAudio() {
 }
 document.addEventListener('click', unlockAudio);
 
+function toggleMute() {
+  if (!isPresenter) return;
+  db.ref('muted').set(!globalMuted);
+}
+
 function playTriviaMusic() {
+  if (globalMuted) return;
   triviaMusic.currentTime = 0;
   triviaMusic.play().catch(() => {});
 }
@@ -2185,6 +2202,7 @@ function stopTriviaMusic() {
 }
 
 function playSound(type) {
+  if (globalMuted) return;
   const sound = type === 'cheer' ? cheerSound : booSound;
   sound.currentTime = 0;
   sound.play().catch(() => {});

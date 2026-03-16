@@ -940,6 +940,66 @@ textarea:focus {
   display: none;
 }
 #solo-next-btn.visible { display: inline-block; }
+
+/* ===== CONSENT & FAMILY PICKER ===== */
+.consent-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+select.family-select {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--blue);
+  border-radius: 4px;
+  font-size: 1.05rem;
+  font-family: inherit;
+  background: rgba(126,184,218,0.08);
+  color: var(--white);
+  appearance: none;
+  cursor: pointer;
+}
+select.family-select:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+select.family-select option {
+  background: var(--navy);
+  color: var(--white);
+}
+.about-q-optional {
+  font-size: 0.75rem;
+  color: var(--white-dim);
+  font-style: italic;
+  margin-bottom: 0.5rem;
+}
+.about-q-family-name {
+  color: var(--gold);
+  font-weight: 700;
+}
+.family-consent-card {
+  background: rgba(232,168,56,0.06);
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+.family-consent-card label {
+  color: var(--white);
+  font-size: 1rem;
+  cursor: pointer;
+  flex: 1;
+}
+.family-consent-card input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--gold);
+}
 </style>
 </head>
 <body>
@@ -1005,6 +1065,43 @@ textarea:focus {
     <input type="email" id="signin-email" placeholder="Your email">
     <button class="btn btn-primary" style="width:100%" onclick="signIn()">Continue</button>
     <p class="error-msg" id="signin-error" style="display:none"></p>
+  </div>
+</div>
+
+<!-- ========== FAMILY PICKER SCREEN ========== -->
+<div id="family-picker-screen" class="screen">
+  <h1 class="title" style="font-size:2.2rem;">Which Murphy Are You?</h1>
+  <p class="subtitle">Help us find you in the family tree</p>
+  <div class="card" style="max-width:500px;">
+    <select class="family-select" id="family-picker-select">
+      <option value="">-- Select your name --</option>
+    </select>
+    <button class="btn btn-primary" style="width:100%;margin-top:1rem;" onclick="confirmFamilyPicker()">That's Me!</button>
+    <button class="link-btn" onclick="skipFamilyPicker()">I'm not on this list</button>
+    <p class="error-msg" id="picker-error" style="display:none"></p>
+  </div>
+</div>
+
+<!-- ========== CONSENT SCREEN ========== -->
+<div id="consent-screen" class="screen">
+  <h1 class="title" style="font-size:2.2rem;">One Quick Question</h1>
+  <div class="card" style="max-width:500px;text-align:center;">
+    <p style="color:var(--white);font-size:1.1rem;line-height:1.6;margin-bottom:1.2rem;">
+      We'd love to build a trivia game about <strong style="color:var(--gold);">you</strong>
+      for your family to play — like "You Don't Know <strong id="consent-name-display" style="color:var(--gold);"></strong>!"
+    </p>
+    <p style="color:var(--white-dim);font-size:0.95rem;line-height:1.5;margin-bottom:1.5rem;">
+      We'll ask you some fun questions about yourself along the way.
+      Your answers will only be used to make a family trivia game.
+    </p>
+    <div id="consent-children-section" style="display:none;text-align:left;margin-bottom:1.5rem;">
+      <p style="color:var(--white);font-size:0.95rem;margin-bottom:0.8rem;">You can also opt in for your younger kids:</p>
+      <div id="consent-children-list"></div>
+    </div>
+    <div class="consent-buttons">
+      <button class="btn btn-primary" onclick="handleConsent(true)">Sounds Fun!</button>
+      <button class="btn btn-secondary" onclick="handleConsent(false)">No Thanks</button>
+    </div>
   </div>
 </div>
 
@@ -1442,6 +1539,193 @@ const ABOUT_QUESTIONS_PER_PHASE = 5;
 const ABOUT_ANSWERS_NEEDED = 20;
 
 // =====================================================
+// MURPHY FAMILY TREE
+// =====================================================
+const FAMILY_TREE = {
+  // Generation 0
+  "joe-marion": { name: "Joe & Marion Murphy", gen: 0, parent: null, searchNames: [] },
+  // Generation 1 — Children
+  "colleen": { name: "Colleen Mullins", gen: 1, parent: "joe-marion", searchNames: ["colleen", "colleen mullins", "colleen murphy"] },
+  "maureen": { name: "Maureen Murphy", gen: 1, parent: "joe-marion", searchNames: ["maureen", "maureen murphy", "maureen matson"] },
+  "shannon": { name: "Shannon Wescom", gen: 1, parent: "joe-marion", searchNames: ["shannon", "shannon wescom", "shannon murphy"] },
+  "kerry": { name: "Kerry Lombardi", gen: 1, parent: "joe-marion", searchNames: ["kerry", "kerry lombardi", "kerry murphy"] },
+  "tim": { name: "Tim Murphy", gen: 1, parent: "joe-marion", searchNames: ["tim", "tim murphy"] },
+  "erin": { name: "Erin Smith", gen: 1, parent: "joe-marion", searchNames: ["erin", "erin smith", "erin murphy"] },
+  "megan": { name: "Megan Grensback", gen: 1, parent: "joe-marion", searchNames: ["megan", "megan grensback", "megan murphy"] },
+  "joey-sr": { name: "Joey Murphy", gen: 1, parent: "joe-marion", searchNames: ["joey murphy"] },
+  // Generation 2 — Grandchildren (Colleen)
+  "seth": { name: "Seth", gen: 2, parent: "colleen", searchNames: ["seth", "seth anderson", "seth mullins"] },
+  "katie": { name: "Katie Cook", gen: 2, parent: "colleen", searchNames: ["katie", "katie cook", "katie mullins"] },
+  "andrew-m": { name: "Andrew Mullins", gen: 2, parent: "colleen", searchNames: ["andrew mullins", "andrew"] },
+  // Generation 2 — Grandchildren (Maureen)
+  "kristan": { name: "Kristan Finney", gen: 2, parent: "maureen", searchNames: ["kristan", "kristan finney", "kristan latson"] },
+  "melissa": { name: "Melissa Bettis", gen: 2, parent: "maureen", searchNames: ["melissa", "melissa bettis", "melissa finney"] },
+  "chelsea": { name: "Chelsea San Nicolas", gen: 2, parent: "maureen", searchNames: ["chelsea", "chelsea san nicolas", "chelsea hessel"] },
+  "dominic": { name: "Dominic Finney", gen: 2, parent: "maureen", searchNames: ["dominic", "dominic finney"] },
+  "skyler": { name: "Skyler", gen: 2, parent: "maureen", searchNames: ["skyler", "skyler matson"] },
+  "aja": { name: "Aja", gen: 2, parent: "maureen", searchNames: ["aja", "aja matson"] },
+  // Generation 2 — Grandchildren (Shannon)
+  "leo": { name: "Leo Babauta", gen: 2, parent: "shannon", searchNames: ["leo", "leo babauta", "leonardo babauta", "leonardo"] },
+  "kat": { name: "Kat Barnett", gen: 2, parent: "shannon", searchNames: ["kat", "kat barnett", "katrina", "katrina barnett", "kat weingarten"] },
+  "ana": { name: "Ana Babauta", gen: 2, parent: "shannon", searchNames: ["ana", "ana babauta"] },
+  // Generation 2 — Grandchildren (Kerry)
+  "heidi": { name: "Heidi Butler", gen: 2, parent: "kerry", searchNames: ["heidi", "heidi butler"] },
+  "chris-l": { name: "Chris Lombardi", gen: 2, parent: "kerry", searchNames: ["chris lombardi"] },
+  "danny": { name: "Danny Lombardi", gen: 2, parent: "kerry", searchNames: ["danny", "danny lombardi"] },
+  // Generation 2 — Grandchildren (Tim)
+  "connor": { name: "Connor Murphy", gen: 2, parent: "tim", searchNames: ["connor", "connor murphy"] },
+  "kimberly": { name: "Kimberly Murphy", gen: 2, parent: "tim", searchNames: ["kimberly", "kimberly murphy", "kim murphy"] },
+  "michael-m": { name: "Michael Murphy", gen: 2, parent: "tim", searchNames: ["michael murphy", "michael"] },
+  "matthew-m": { name: "Matthew Murphy", gen: 2, parent: "tim", searchNames: ["matthew murphy", "matthew", "matt murphy"] },
+  "timothy-jr": { name: "Timothy Murphy Jr", gen: 2, parent: "tim", searchNames: ["timothy murphy", "timothy"] },
+  // Generation 2 — Grandchildren (Erin)
+  "hannah": { name: "Hannah Smith", gen: 2, parent: "erin", searchNames: ["hannah", "hannah smith"] },
+  "patrick-s": { name: "Patrick Smith", gen: 2, parent: "erin", searchNames: ["patrick smith", "patrick"] },
+  // Generation 2 — Grandchildren (Megan)
+  "austen": { name: "Austen Grensback", gen: 2, parent: "megan", searchNames: ["austen", "austen grensback"] },
+  "ian": { name: "Ian Grensback", gen: 2, parent: "megan", searchNames: ["ian", "ian grensback"] },
+  "sophie": { name: "Sophie Grensback", gen: 2, parent: "megan", searchNames: ["sophie", "sophie grensback", "sophie larson"] },
+  "chace": { name: "Chace Pence", gen: 2, parent: "megan", searchNames: ["chace", "chace pence"] },
+  // Generation 2 — Grandchildren (Joey)
+  "joseph": { name: "Joseph Murphy", gen: 2, parent: "joey-sr", searchNames: ["joseph murphy", "joseph"] },
+  "myrna": { name: "Myrna Murphy", gen: 2, parent: "joey-sr", searchNames: ["myrna", "myrna murphy", "myrna kedy murphy", "myrna smith"] },
+  // Generation 3 — Great-grandchildren (Katie)
+  "ethan-c": { name: "Ethan Cook", gen: 3, parent: "katie", searchNames: ["ethan", "ethan cook"] },
+  "zoey-c": { name: "Zoey Cook", gen: 3, parent: "katie", searchNames: ["zoey", "zoey cook"] },
+  // Generation 3 — Great-grandchildren (Kristan)
+  "marion-f": { name: "Marion Finney", gen: 3, parent: "kristan", searchNames: ["marion finney"] },
+  "london-f": { name: "London Finney", gen: 3, parent: "kristan", searchNames: ["london", "london finney"] },
+  // Generation 3 — Great-grandchildren (Melissa)
+  "leland-jr": { name: "Leland Bettis", gen: 3, parent: "melissa", searchNames: ["leland bettis", "leland brabu", "leland"] },
+  "haani": { name: "Ha'ani Bettis", gen: 3, parent: "melissa", searchNames: ["haani", "ha'ani", "haani bettis"] },
+  "aura": { name: "Aura Bettis", gen: 3, parent: "melissa", searchNames: ["aura", "aura bettis"] },
+  "zephyr": { name: "Zephyr Bettis", gen: 3, parent: "melissa", searchNames: ["zephyr", "zephyr bettis"] },
+  "rohan": { name: "Rohan Bettis", gen: 3, parent: "melissa", searchNames: ["rohan", "rohan bettis"] },
+  "sierra": { name: "Sierra Bettis", gen: 3, parent: "melissa", searchNames: ["sierra", "sierra bettis"] },
+  // Generation 3 — Great-grandchildren (Chelsea)
+  "nicolas": { name: "Nicolas", gen: 3, parent: "chelsea", searchNames: ["nicolas"] },
+  "rhea": { name: "Rhea", gen: 3, parent: "chelsea", searchNames: ["rhea"] },
+  // Generation 3 — Great-grandchildren (Dominic)
+  "cordelia": { name: "Cordelia Finney", gen: 3, parent: "dominic", searchNames: ["cordelia", "cordelia finney"] },
+  // Generation 3 — Great-grandchildren (Skyler)
+  "soraya": { name: "Soraya Matson", gen: 3, parent: "skyler", searchNames: ["soraya", "soraya matson"] },
+  // Generation 3 — Great-grandchildren (Aja)
+  "van-ethan": { name: "Van Ethan Matson", gen: 3, parent: "aja", searchNames: ["van ethan", "van ethan matson", "van"] },
+  // Generation 3 — Great-grandchildren (Leo)
+  "chloe": { name: "Chloe Babauta Ho", gen: 3, parent: "leo", searchNames: ["chloe", "chloe babauta", "chloe ho"] },
+  "justin": { name: "Justin Cruz", gen: 3, parent: "leo", searchNames: ["justin", "justin cruz"] },
+  "rain": { name: "Rain Babauta", gen: 3, parent: "leo", searchNames: ["rain", "rain babauta"] },
+  "maia": { name: "Maia Cruz", gen: 3, parent: "leo", searchNames: ["maia", "maia cruz"] },
+  "isaiah": { name: "Isaiah Babauta", gen: 3, parent: "leo", searchNames: ["isaiah", "isaiah babauta"] },
+  "noelle": { name: "Noelle Babauta", gen: 3, parent: "leo", searchNames: ["noelle", "noelle babauta"] },
+  // Generation 3 — Great-grandchildren (Kat)
+  "samantha": { name: "Samantha Barnett", gen: 3, parent: "kat", searchNames: ["samantha", "samantha barnett"] },
+  "lennon": { name: "Lennon Barnett", gen: 3, parent: "kat", searchNames: ["lennon", "lennon barnett"] },
+  "ronin": { name: "Ronin Weingarten", gen: 3, parent: "kat", searchNames: ["ronin", "ronin weingarten"] },
+  // Generation 3 — Great-grandchildren (Ana)
+  "isabella": { name: "Isabella Respicio", gen: 3, parent: "ana", searchNames: ["isabella", "isabella respicio"] },
+  "joey-lucia": { name: "Joey Lucia Heflin", gen: 3, parent: "ana", searchNames: ["joey lucia", "joey lucia heflin", "joey heflin"] },
+  "blake": { name: "Blake Heflin", gen: 3, parent: "ana", searchNames: ["blake", "blake heflin"] },
+  // Generation 3 — Great-grandchildren (Heidi)
+  "hailey": { name: "Hailey Thomas", gen: 3, parent: "heidi", searchNames: ["hailey", "hailey thomas"] },
+  "zahra": { name: "Zahra Darby", gen: 3, parent: "heidi", searchNames: ["zahra", "zahra darby"] },
+  // Generation 3 — Great-grandchildren (Chris L)
+  "lucas-l": { name: "Lucas Lombardi", gen: 3, parent: "chris-l", searchNames: ["lucas", "lucas lombardi"] },
+  "cameron-l": { name: "Cameron Lombardi", gen: 3, parent: "chris-l", searchNames: ["cameron", "cameron lombardi"] },
+  // Generation 3 — Great-grandchildren (Danny)
+  "kinsley": { name: "Kinsley Lombardi", gen: 3, parent: "danny", searchNames: ["kinsley", "kinsley lombardi"] },
+  "tatum": { name: "Tatum Joseph", gen: 3, parent: "danny", searchNames: ["tatum", "tatum joseph"] },
+  "beau": { name: "Beau Lombardi", gen: 3, parent: "danny", searchNames: ["beau", "beau lombardi"] },
+  // Generation 3 — Great-grandchildren (Austen)
+  "kaya": { name: "Kaya Grensback", gen: 3, parent: "austen", searchNames: ["kaya", "kaya grensback"] },
+  "indy": { name: "Indy Grensback", gen: 3, parent: "austen", searchNames: ["indy", "indy grensback"] },
+  // Generation 3 — Great-grandchildren (Ian)
+  "lillian": { name: "Lillian Grensback", gen: 3, parent: "ian", searchNames: ["lillian", "lillian grensback"] },
+  "roman": { name: "Roman Grensback", gen: 3, parent: "ian", searchNames: ["roman", "roman grensback"] },
+  // Generation 3 — Great-grandchildren (Sophie)
+  "wesley": { name: "Wesley John", gen: 3, parent: "sophie", searchNames: ["wesley", "wesley john"] },
+  // Generation 4 — Great-great-grandchildren (Leland Jr)
+  "olivia-joy": { name: "Olivia Joy Bettis", gen: 4, parent: "leland-jr", searchNames: ["olivia", "olivia joy", "olivia bettis"] },
+  "isla": { name: "Isla Bettis", gen: 4, parent: "leland-jr", searchNames: ["isla", "isla bettis"] },
+  "weston": { name: "Weston Bettis", gen: 4, parent: "leland-jr", searchNames: ["weston", "weston bettis"] },
+};
+
+// =====================================================
+// FAMILY TREE HELPERS
+// =====================================================
+function getFamilyChildren(memberId) {
+  return Object.entries(FAMILY_TREE)
+    .filter(([_, m]) => m.parent === memberId)
+    .map(([id, m]) => ({ id, ...m }));
+}
+
+function getFamilySiblings(memberId) {
+  const member = FAMILY_TREE[memberId];
+  if (!member || !member.parent) return [];
+  return Object.entries(FAMILY_TREE)
+    .filter(([id, m]) => m.parent === member.parent && id !== memberId)
+    .map(([id, m]) => ({ id, ...m }));
+}
+
+function getFamilyParent(memberId) {
+  const member = FAMILY_TREE[memberId];
+  if (!member || !member.parent) return null;
+  return { id: member.parent, ...FAMILY_TREE[member.parent] };
+}
+
+function getImmediateFamily(memberId) {
+  return {
+    parent: getFamilyParent(memberId),
+    siblings: getFamilySiblings(memberId),
+    children: getFamilyChildren(memberId),
+  };
+}
+
+function matchFamilyMember(name) {
+  const lower = name.toLowerCase().trim();
+  // Exact match on searchNames
+  for (const [id, m] of Object.entries(FAMILY_TREE)) {
+    if (m.searchNames && m.searchNames.includes(lower)) return id;
+  }
+  // Partial match — name contains a search name or vice versa
+  for (const [id, m] of Object.entries(FAMILY_TREE)) {
+    if (m.searchNames && m.searchNames.some(sn => lower.includes(sn) || sn.includes(lower))) return id;
+  }
+  return null;
+}
+
+function canConsentFor(playerId, familyMemberId) {
+  const member = FAMILY_TREE[familyMemberId];
+  if (!member) return false;
+  // Great-great-grandchild (gen 4) and player is their parent
+  if (member.gen === 4 && member.parent === playerId) return true;
+  // Special case: Joey Lucia can be consented by Ana
+  if (familyMemberId === 'joey-lucia' && playerId === 'ana') return true;
+  return false;
+}
+
+function buildFamilyPickerOptions() {
+  const select = document.getElementById('family-picker-select');
+  // Group by generation
+  const genLabels = { 1: "Children of Joe & Marion", 2: "Grandchildren", 3: "Great-Grandchildren", 4: "Great-Great-Grandchildren" };
+  [1, 2, 3, 4].forEach(gen => {
+    const members = Object.entries(FAMILY_TREE)
+      .filter(([_, m]) => m.gen === gen)
+      .sort((a, b) => a[1].name.localeCompare(b[1].name));
+    if (members.length === 0) return;
+    const group = document.createElement('optgroup');
+    group.label = genLabels[gen];
+    members.forEach(([id, m]) => {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = m.name;
+      group.appendChild(opt);
+    });
+    select.appendChild(group);
+  });
+}
+
+// =====================================================
 // APP STATE
 // =====================================================
 const GAME_MODE = new URLSearchParams(window.location.search).get('mode') === 'multiplayer' ? 'multiplayer' : 'solo';
@@ -1458,6 +1742,9 @@ const LETTERS = ['A', 'B', 'C', 'D'];
 let currentVisitorId = null;
 let currentVisitorName = '';
 let currentVisitorData = null;
+let currentFamilyMemberId = null;
+let currentOptedIn = false;
+let consentedChildIds = []; // kids the player consented for
 let soloScore = 0;
 let soloCurrentQuestion = 0;
 let soloQuestionOrder = null;
@@ -2510,7 +2797,6 @@ function signIn() {
   db.ref('users').orderByChild('email').equalTo(email).once('value', snap => {
     const users = snap.val();
     if (users) {
-      // Existing user
       const id = Object.keys(users)[0];
       currentVisitorId = id;
       currentVisitorData = users[id];
@@ -2520,9 +2806,7 @@ function signIn() {
       }
       localStorage.setItem('gt_visitorId', id);
       localStorage.setItem('gt_visitorEmail', email);
-      startAboutPhase('pre');
     } else {
-      // New user
       const ref = db.ref('users').push();
       currentVisitorId = ref.key;
       currentVisitorName = name;
@@ -2530,21 +2814,174 @@ function signIn() {
       ref.set({ name, email, createdAt: firebase.database.ServerValue.TIMESTAMP, gamesPlayed: 0 });
       localStorage.setItem('gt_visitorId', currentVisitorId);
       localStorage.setItem('gt_visitorEmail', email);
-      startAboutPhase('pre');
     }
+    // Identify family member
+    identifyFamilyMember();
   });
 }
 
 // =====================================================
-// ABOUT YOU FLOW
+// FAMILY IDENTIFICATION
 // =====================================================
+function identifyFamilyMember() {
+  // Check if already identified in Firebase
+  if (currentVisitorData && currentVisitorData.familyMemberId) {
+    currentFamilyMemberId = currentVisitorData.familyMemberId;
+    if (currentVisitorData.optedIn !== undefined) {
+      currentOptedIn = currentVisitorData.optedIn;
+      proceedAfterConsent();
+      return;
+    }
+    showConsentScreen();
+    return;
+  }
+
+  // Try name match
+  const matched = matchFamilyMember(currentVisitorName);
+  if (matched) {
+    currentFamilyMemberId = matched;
+    db.ref(`users/${currentVisitorId}/familyMemberId`).set(matched);
+    showConsentScreen();
+  } else {
+    // Show family picker
+    buildFamilyPickerOptions();
+    showScreen('family-picker-screen');
+  }
+}
+
+function confirmFamilyPicker() {
+  const select = document.getElementById('family-picker-select');
+  if (!select.value) {
+    showError('picker-error', 'Please select your name from the list.');
+    return;
+  }
+  currentFamilyMemberId = select.value;
+  db.ref(`users/${currentVisitorId}/familyMemberId`).set(select.value);
+  showConsentScreen();
+}
+
+function skipFamilyPicker() {
+  currentFamilyMemberId = null;
+  showConsentScreen();
+}
+
+// =====================================================
+// CONSENT
+// =====================================================
+function showConsentScreen() {
+  const nameEl = document.getElementById('consent-name-display');
+  nameEl.textContent = currentVisitorName;
+
+  // Show consentable children (great-great-grandkids + Joey Lucia exception)
+  const childSection = document.getElementById('consent-children-section');
+  const childList = document.getElementById('consent-children-list');
+  childList.innerHTML = '';
+
+  if (currentFamilyMemberId) {
+    const children = getFamilyChildren(currentFamilyMemberId);
+    const consentableKids = children.filter(c => canConsentFor(currentFamilyMemberId, c.id));
+    if (consentableKids.length > 0) {
+      consentableKids.forEach(kid => {
+        const div = document.createElement('div');
+        div.className = 'family-consent-card';
+        div.innerHTML = `
+          <input type="checkbox" id="consent-child-${kid.id}" value="${kid.id}" checked>
+          <label for="consent-child-${kid.id}">Also create a trivia game about <strong>${escapeHtml(kid.name)}</strong></label>
+        `;
+        childList.appendChild(div);
+      });
+      childSection.style.display = 'block';
+    } else {
+      childSection.style.display = 'none';
+    }
+  } else {
+    childSection.style.display = 'none';
+  }
+
+  showScreen('consent-screen');
+}
+
+function handleConsent(optedIn) {
+  currentOptedIn = optedIn;
+  db.ref(`users/${currentVisitorId}/optedIn`).set(optedIn);
+
+  // Save opt-in to global lookup
+  if (optedIn && currentFamilyMemberId) {
+    db.ref(`optedIn/${currentFamilyMemberId}`).set(true);
+  }
+
+  // Process child consents
+  consentedChildIds = [];
+  if (currentFamilyMemberId) {
+    const checkboxes = document.querySelectorAll('[id^="consent-child-"]');
+    checkboxes.forEach(cb => {
+      if (cb.checked) {
+        consentedChildIds.push(cb.value);
+        db.ref(`optedIn/${cb.value}`).set(true);
+      }
+    });
+  }
+
+  proceedAfterConsent();
+}
+
+function proceedAfterConsent() {
+  // Determine if we have anyone to ask about
+  if (currentOptedIn) {
+    startAboutPhase('pre');
+  } else {
+    // Not opted in — check if any family members are opted in
+    checkFamilyOptIns(optedInMembers => {
+      if (optedInMembers.length > 0) {
+        startAboutPhase('pre');
+      } else {
+        // Nobody to ask about, go straight to trivia
+        startSoloGame();
+      }
+    });
+  }
+}
+
+function checkFamilyOptIns(callback) {
+  if (!currentFamilyMemberId) {
+    callback([]);
+    return;
+  }
+  const family = getImmediateFamily(currentFamilyMemberId);
+  const memberIds = [];
+  if (family.parent && family.parent.id !== 'joe-marion') memberIds.push(family.parent.id);
+  family.siblings.forEach(s => memberIds.push(s.id));
+  family.children.forEach(c => memberIds.push(c.id));
+
+  if (memberIds.length === 0) {
+    callback([]);
+    return;
+  }
+
+  // Check which are opted in
+  db.ref('optedIn').once('value', snap => {
+    const optedInData = snap.val() || {};
+    const optedInMembers = memberIds.filter(id => optedInData[id]);
+    callback(optedInMembers);
+  });
+}
+
+// =====================================================
+// ABOUT YOU FLOW (with family member questions)
+// =====================================================
+// Each phase stores an array of question items:
+// { type: 'self', questionId: N }
+// { type: 'family', questionId: N, familyMemberId: 'kat', familyMemberName: 'Kat' }
+let aboutPreItems = [];
+let aboutPostItems = [];
+
 function getUnansweredQuestionIds(aboutAnswers) {
   const answered = aboutAnswers ? Object.keys(aboutAnswers).map(Number) : [];
   return ABOUT_QUESTIONS.filter(q => !answered.includes(q.id)).map(q => q.id);
 }
 
-function pickRandomQuestions(ids, count) {
-  const shuffled = [...ids];
+function pickRandom(arr, count) {
+  const shuffled = [...arr];
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
@@ -2553,76 +2990,167 @@ function pickRandomQuestions(ids, count) {
 }
 
 function startAboutPhase(phase) {
-  db.ref(`users/${currentVisitorId}`).once('value', snap => {
-    currentVisitorData = snap.val() || currentVisitorData;
-    const unanswered = getUnansweredQuestionIds(currentVisitorData.aboutAnswers);
+  db.ref(`users/${currentVisitorId}`).once('value', userSnap => {
+    currentVisitorData = userSnap.val() || currentVisitorData;
 
-    if (unanswered.length === 0) {
-      if (phase === 'pre') {
-        startSoloGame();
-      } else {
-        showDoneScreen();
-      }
-      return;
-    }
+    // Build self questions (if opted in)
+    const selfUnanswered = currentOptedIn ? getUnansweredQuestionIds(currentVisitorData.aboutAnswers) : [];
 
-    const count = Math.min(ABOUT_QUESTIONS_PER_PHASE, unanswered.length);
-    const selectedIds = pickRandomQuestions(unanswered, count);
-
-    if (phase === 'pre') {
-      aboutPreQuestionIds = selectedIds;
-      renderAboutQuestions('pre', selectedIds);
-      const nameEl = document.getElementById('about-pre-name-display');
-      if (nameEl) nameEl.textContent = currentVisitorName;
-      showScreen('about-pre-screen');
-    } else {
-      aboutPostQuestionIds = selectedIds;
-      renderAboutQuestions('post', selectedIds);
-      showScreen('about-post-screen');
-    }
+    // Build family questions
+    checkFamilyOptIns(optedInMemberIds => {
+      buildAboutItems(phase, selfUnanswered, optedInMemberIds);
+    });
   });
 }
 
-function renderAboutQuestions(phase, questionIds) {
+function buildAboutItems(phase, selfUnanswered, optedInMemberIds) {
+  const items = [];
+  const total = ABOUT_QUESTIONS_PER_PHASE;
+
+  if (currentOptedIn && selfUnanswered.length > 0 && optedInMemberIds.length > 0) {
+    // Mix: ~half self, ~half family
+    const selfCount = Math.ceil(total / 2);
+    const familyCount = total - selfCount;
+    const selfPicks = pickRandom(selfUnanswered, selfCount);
+    selfPicks.forEach(qId => items.push({ type: 'self', questionId: qId }));
+    addFamilyItems(items, familyCount, optedInMemberIds);
+  } else if (currentOptedIn && selfUnanswered.length > 0) {
+    // Only self questions
+    const selfPicks = pickRandom(selfUnanswered, total);
+    selfPicks.forEach(qId => items.push({ type: 'self', questionId: qId }));
+  } else if (optedInMemberIds.length > 0) {
+    // Only family questions (user opted out or answered all self questions)
+    addFamilyItems(items, total, optedInMemberIds);
+  }
+
+  if (items.length === 0) {
+    if (phase === 'pre') startSoloGame();
+    else showDoneScreen();
+    return;
+  }
+
+  if (phase === 'pre') {
+    aboutPreItems = items;
+    renderMixedAboutQuestions('pre', items);
+    const nameEl = document.getElementById('about-pre-name-display');
+    if (nameEl) nameEl.textContent = currentVisitorName;
+    showScreen('about-pre-screen');
+  } else {
+    aboutPostItems = items;
+    renderMixedAboutQuestions('post', items);
+    showScreen('about-post-screen');
+  }
+}
+
+function addFamilyItems(items, count, optedInMemberIds) {
+  // Pick random family members and random questions for each
+  // Load already-answered family questions to avoid repeats
+  const allQIds = ABOUT_QUESTIONS.map(q => q.id);
+  for (let i = 0; i < count && optedInMemberIds.length > 0; i++) {
+    const memberId = optedInMemberIds[Math.floor(Math.random() * optedInMemberIds.length)];
+    const member = FAMILY_TREE[memberId];
+    if (!member) continue;
+    const qId = allQIds[Math.floor(Math.random() * allQIds.length)];
+    items.push({
+      type: 'family',
+      questionId: qId,
+      familyMemberId: memberId,
+      familyMemberName: member.name.split(' ')[0], // first name
+    });
+  }
+}
+
+function renderMixedAboutQuestions(phase, items) {
   const container = document.getElementById(`about-${phase}-questions`);
   container.innerHTML = '';
-  questionIds.forEach((qId, i) => {
-    const q = ABOUT_QUESTIONS[qId];
+  items.forEach((item, i) => {
+    const q = ABOUT_QUESTIONS[item.questionId];
+    if (!q) return;
     const card = document.createElement('div');
     card.className = 'about-question-card';
-    card.innerHTML = `
-      <div class="about-q-label">${escapeHtml(q.category)} — Question ${i + 1} of ${questionIds.length}</div>
-      <div class="about-q-text">${escapeHtml(q.question)}</div>
-      <textarea id="about-${phase}-${qId}" placeholder="Your answer..."></textarea>
-    `;
+
+    if (item.type === 'self') {
+      card.innerHTML = `
+        <div class="about-q-label">${escapeHtml(q.category)} — Question ${i + 1} of ${items.length}</div>
+        <div class="about-q-text">${escapeHtml(q.question)}</div>
+        <textarea id="about-${phase}-${i}" placeholder="Your answer..."></textarea>
+      `;
+    } else {
+      // Family question — rephrase with the family member's name
+      const rephrased = rephraseFamilyQuestion(q.question, item.familyMemberName);
+      card.innerHTML = `
+        <div class="about-q-label">About <span class="about-q-family-name">${escapeHtml(item.familyMemberName)}</span> — Question ${i + 1} of ${items.length}</div>
+        <div class="about-q-text">${escapeHtml(rephrased)}</div>
+        <p class="about-q-optional">Skip if you're not sure</p>
+        <textarea id="about-${phase}-${i}" placeholder="Your answer (or leave blank to skip)..."></textarea>
+      `;
+    }
     container.appendChild(card);
   });
 }
 
-function submitAboutAnswers(phase) {
-  const questionIds = phase === 'pre' ? aboutPreQuestionIds : aboutPostQuestionIds;
-  const answers = {};
-  let allFilled = true;
+function rephraseFamilyQuestion(question, firstName) {
+  // "What's your favorite movie?" → "What's Leo's favorite movie?"
+  // "Where were you born?" → "Where was Leo born?"
+  // "Did you have a childhood nickname?" → "Did Leo have a childhood nickname?"
+  // "Are you into sports?" → "Is Leo into sports?"
+  return question
+    .replace(/\bWhat's your\b/gi, `What's ${firstName}'s`)
+    .replace(/\bWhat was your\b/gi, `What was ${firstName}'s`)
+    .replace(/\bWhat is your\b/gi, `What is ${firstName}'s`)
+    .replace(/\bDo you\b/gi, `Does ${firstName}`)
+    .replace(/\bDid you\b/gi, `Did ${firstName}`)
+    .replace(/\bAre you\b/gi, `Is ${firstName}`)
+    .replace(/\bWhere were you\b/gi, `Where was ${firstName}`)
+    .replace(/\bWho was your\b/gi, `Who was ${firstName}'s`)
+    .replace(/\bWho in your\b/gi, `Who in ${firstName}'s`)
+    .replace(/\bHave you\b/gi, `Has ${firstName}`)
+    .replace(/\byour\b/gi, `${firstName}'s`)
+    .replace(/\byou\b/gi, firstName);
+}
 
-  questionIds.forEach(qId => {
-    const textarea = document.getElementById(`about-${phase}-${qId}`);
+function submitAboutAnswers(phase) {
+  const items = phase === 'pre' ? aboutPreItems : aboutPostItems;
+  const updates = {};
+  let selfAllFilled = true;
+
+  items.forEach((item, i) => {
+    const textarea = document.getElementById(`about-${phase}-${i}`);
     const answer = textarea ? textarea.value.trim() : '';
-    if (!answer) {
-      allFilled = false;
-    } else {
-      answers[qId] = { answer, answeredAt: firebase.database.ServerValue.TIMESTAMP };
+
+    if (item.type === 'self') {
+      if (!answer) {
+        selfAllFilled = false;
+      } else {
+        updates[`users/${currentVisitorId}/aboutAnswers/${item.questionId}`] = {
+          answer,
+          answeredAt: firebase.database.ServerValue.TIMESTAMP
+        };
+      }
+    } else if (item.type === 'family' && answer) {
+      // Save family answer under the family member's profile
+      updates[`familyAnswers/${item.familyMemberId}/${item.questionId}/${currentVisitorId}`] = {
+        answer,
+        answeredByName: currentVisitorName,
+        answeredAt: firebase.database.ServerValue.TIMESTAMP
+      };
     }
+    // Family questions can be skipped — no error
   });
 
-  if (!allFilled) {
-    showError(`about-${phase}-error`, 'Please answer all questions before continuing.');
+  if (!selfAllFilled) {
+    showError(`about-${phase}-error`, 'Please answer all questions about yourself before continuing.');
     return;
   }
 
-  const updates = {};
-  Object.entries(answers).forEach(([qId, data]) => {
-    updates[`users/${currentVisitorId}/aboutAnswers/${qId}`] = data;
-  });
+  if (Object.keys(updates).length === 0) {
+    if (phase === 'pre') startSoloGame();
+    else {
+      db.ref(`users/${currentVisitorId}/gamesPlayed`).transaction(count => (count || 0) + 1);
+      showDoneScreen();
+    }
+    return;
+  }
 
   db.ref().update(updates).then(() => {
     if (phase === 'pre') {

@@ -1648,6 +1648,53 @@ const FAMILY_TREE = {
   "olivia-joy": { name: "Olivia Joy Bettis", gen: 4, parent: "leland-jr", searchNames: ["olivia", "olivia joy", "olivia bettis"] },
   "isla": { name: "Isla Bettis", gen: 4, parent: "leland-jr", searchNames: ["isla", "isla bettis"] },
   "weston": { name: "Weston Bettis", gen: 4, parent: "leland-jr", searchNames: ["weston", "weston bettis"] },
+  // Extended family — Murphy cousins (generation 1)
+  "pat": { name: "Pat Murphy", gen: 1, parent: null, searchNames: ["pat murphy", "pat"] },
+  "michelle": { name: "Michelle Murphy", gen: 1, parent: null, searchNames: ["michelle murphy", "michelle", "michelle perkins"] },
+  "charlene": { name: "Charlene Pagan", gen: 1, parent: null, searchNames: ["charlene", "charlene pagan"] },
+  // Pat's children (generation 2)
+  "peter-b": { name: "Peter Braden", gen: 2, parent: "pat", searchNames: ["peter", "peter braden"] },
+  "alice-b": { name: "Alice Braden", gen: 2, parent: "pat", searchNames: ["alice braden", "alice"] },
+};
+
+// Email-to-family-member mapping for reliable identification
+const EMAIL_TO_FAMILY = {
+  "austentatious07@gmail.com": "austen",
+  "igrensback91@gmail.com": "ian",
+  "grensbacksophie@gmail.com": "sophie",
+  "cpence05@gmail.com": "chace",
+  "hibutler@comcast.net": "heidi",
+  "chris@spoton.com": "chris-l",
+  "lombardi@outlook.com": "danny",
+  "zzdarb@yahoo.com": "zahra",
+  "htblerbs@gmail.com": "hailey",
+  "kat.barnett16@gmail.com": "kat",
+  "thegrensbacks@gmail.com": "megan",
+  "thegrensbacks@hotmail.com": "megan",
+  "melissabettis@yahoo.com": "melissa",
+  "ctmurphy@hotmail.com": "connor",
+  "kristan.finney@gmail.com": "kristan",
+  "maureenguam@gmail.com": "maureen",
+  "anababauta@gmail.com": "ana",
+  "katiecook.atx@gmail.com": "katie",
+  "joemurph64@gmail.com": "joey-sr",
+  "tim@jamaicangrill.com": "tim",
+  "leo.babauta@gmail.com": "leo",
+  "seth@dlainc.net": "seth",
+  "erinkmurphy488@gmail.com": "erin",
+  "shannonjm@gmail.com": "shannon",
+  "andrew@halfempty.com": "andrew-m",
+  "blue96915@gmail.com": "justin",
+  "rainbabauta1@gmail.com": "rain",
+  "chloe.babauta@gmail.com": "chloe",
+  "maia.cruz99@gmail.com": "maia",
+  "noellecayce@gmail.com": "noelle",
+  "seth.babauta5@gmail.com": "isaiah",
+  "pat.murphy@outlook.com": "pat",
+  "pkbraden@gmail.com": "peter-b",
+  "alicecbraden@gmail.com": "alice-b",
+  "murphyperkins@gmail.com": "michelle",
+  "charlene.pagan@comcast.net": "charlene",
 };
 
 // =====================================================
@@ -2836,11 +2883,21 @@ function identifyFamilyMember() {
     return;
   }
 
+  // Try email match first (most reliable)
+  const email = (currentVisitorData && currentVisitorData.email) || localStorage.getItem('gt_visitorEmail') || '';
+  const emailMatch = EMAIL_TO_FAMILY[email.toLowerCase()];
+  if (emailMatch) {
+    currentFamilyMemberId = emailMatch;
+    db.ref(`users/${currentVisitorId}/familyMemberId`).set(emailMatch);
+    showConsentScreen();
+    return;
+  }
+
   // Try name match
-  const matched = matchFamilyMember(currentVisitorName);
-  if (matched) {
-    currentFamilyMemberId = matched;
-    db.ref(`users/${currentVisitorId}/familyMemberId`).set(matched);
+  const nameMatch = matchFamilyMember(currentVisitorName);
+  if (nameMatch) {
+    currentFamilyMemberId = nameMatch;
+    db.ref(`users/${currentVisitorId}/familyMemberId`).set(nameMatch);
     showConsentScreen();
   } else {
     // Show family picker

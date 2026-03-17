@@ -1728,6 +1728,93 @@ function randomizeGrandchildQuestions() {
 randomizeGrandchildQuestions();
 
 // =====================================================
+// PRE-GENERATED TRIVIA FOR FAMILY MEMBERS
+// Ready for when each person's trivia game launches.
+// Combined with their "about you" answers to build a full game.
+// =====================================================
+const MEMBER_TRIVIA = {
+  "colleen": [
+    { category: "Early Life", question: "What year was Colleen born?", choices: ["1946", "1948", "1950", "1952"], answer: 1, funFact: "January 29, 1948 — the very first Murphy kid!" },
+    { category: "Early Life", question: "Where was Colleen born?", choices: ["Oshkosh, Wisconsin", "Neenah, Wisconsin", "Madison, Wisconsin", "In the back of Joe's car"], answer: 1, funFact: "Born in Neenah, Wisconsin — Joe and Marion's first baby!" },
+    { category: "Family", question: "What is Colleen's birth order among the Murphy kids?", choices: ["2nd", "1st", "3rd", "She's still arguing about it"], answer: 1, funFact: "The firstborn! She paved the way for seven more." },
+    { category: "Love & Marriage", question: "Who was Colleen's first husband?", choices: ["George Mullins", "Bruce Anderson", "Patrick Cook", "A mysterious Canadian"], answer: 1, funFact: "Colleen married Bruce Anderson in 1968." },
+    { category: "Adventure", question: "Where did Colleen and Bruce move to avoid the Vietnam draft?", choices: ["Mexico City", "London, England", "Toronto, Canada", "They hid in Marion's attic"], answer: 2, funFact: "They moved to Toronto, Canada — where Seth was born in 1969!" },
+    { category: "Family", question: "When the family moved to Guam in 1966, why didn't Colleen go?", choices: ["She was afraid of flying", "She stayed for college", "She was already married", "Someone had to watch the cat"], answer: 1, funFact: "Colleen stayed behind in California to attend college while her 7 siblings made the big move." },
+  ],
+  "maureen": [
+    { category: "Early Life", question: "What year was Maureen born?", choices: ["1950", "1951", "1952", "1953"], answer: 2, funFact: "June 19, 1952 — born in Clintonville, Wisconsin." },
+    { category: "Early Life", question: "Where was Maureen born?", choices: ["Oshkosh, Wisconsin", "Clintonville, Wisconsin", "Guam", "On a road trip somewhere"], answer: 1, funFact: "Clintonville, Wisconsin — the family's second stop." },
+    { category: "Family", question: "What is Maureen's birth order among the Murphy kids?", choices: ["1st", "3rd", "2nd", "She lost count"], answer: 2, funFact: "The 2nd daughter — four years after Colleen." },
+    { category: "School", question: "What high school did Maureen attend in Guam?", choices: ["Father Duenas", "Academy of Our Lady", "George Washington High School", "Murphy Home School"], answer: 2, funFact: "George Washington High School — a Guam institution!" },
+    { category: "Love & Marriage", question: "Who did Maureen marry in 1970?", choices: ["Ernie Matson", "Grover Finney", "John San Nicolas", "The high school principal"], answer: 1, funFact: "Maureen married Grover Finney on May 25, 1970." },
+    { category: "Love & Marriage", question: "What year did Maureen marry Ernie Matson?", choices: ["1995", "1998", "2000", "2002"], answer: 2, funFact: "November 23, 2000 — married in Guam." },
+  ],
+  "shannon": [
+    { category: "Early Life", question: "What year was Shannon born?", choices: ["1951", "1952", "1953", "1954"], answer: 2, funFact: "July 1, 1953 — born in Clintonville, Wisconsin." },
+    { category: "Early Life", question: "Where was Shannon born?", choices: ["Clintonville, Wisconsin", "Brookings, Oregon", "Guam", "A hospital in the middle of nowhere"], answer: 0, funFact: "Clintonville, Wisconsin — same town as Maureen!" },
+    { category: "Family", question: "What is Shannon's birth order among the Murphy kids?", choices: ["2nd", "4th", "3rd", "Somewhere in the middle — she can't remember"], answer: 2, funFact: "The 3rd daughter — one year after Maureen." },
+    { category: "Love & Marriage", question: "Who was Shannon's first husband?", choices: ["Robert Wescom", "Joe Babauta", "Bruce Anderson", "A sailor she met in Guam"], answer: 1, funFact: "Shannon married Joe Babauta in June 1973 in Vancouver, Washington." },
+    { category: "Love & Marriage", question: "What year did Shannon marry Robert Wescom?", choices: ["1999", "2000", "2001", "2003"], answer: 2, funFact: "December 28, 2001 — married in Guam." },
+    { category: "Family", question: "How many children does Shannon have?", choices: ["2", "3", "4", "She stopped counting"], answer: 1, funFact: "Three: Leo, Kat, and Ana." },
+  ],
+  "kerry": [
+    { category: "Early Life", question: "What year was Kerry born?", choices: ["1954", "1955", "1956", "1957"], answer: 1, funFact: "January 16, 1955 — the 4th Murphy daughter." },
+    { category: "Early Life", question: "Kerry was born in Brookings, Oregon — but where was she ACTUALLY born?", choices: ["At home", "Crescent City, California", "Portland, Oregon", "In the car on Highway 101"], answer: 1, funFact: "Brookings had no hospital! Kerry was born across the state line in Crescent City, CA." },
+    { category: "Family", question: "What is Kerry's birth order among the Murphy kids?", choices: ["3rd", "5th", "4th", "The wild one — nobody kept track"], answer: 2, funFact: "The 4th daughter — first one born in Oregon (well, technically California)." },
+    { category: "Love & Marriage", question: "Who did Kerry marry first?", choices: ["Bobby Lombardi", "Denny Butler", "Julius Darby", "A surfer from California"], answer: 1, funFact: "Kerry first married Denny Butler in 1974." },
+  ],
+  "tim": [
+    { category: "Early Life", question: "What year was Tim born?", choices: ["1955", "1956", "1957", "1958"], answer: 1, funFact: "August 31, 1956 — the first Murphy SON! Fifth child overall." },
+    { category: "Early Life", question: "Where was Tim actually born?", choices: ["Brookings, Oregon", "Crescent City, California", "Guam", "Wherever the nearest hospital was"], answer: 1, funFact: "Like Kerry, Tim was actually born in Crescent City, CA — Brookings still had no hospital!" },
+    { category: "Family", question: "What is Tim's birth order among the Murphy kids?", choices: ["4th", "6th", "5th", "First son, and don't you forget it"], answer: 2, funFact: "5th child overall, but the first son — after four daughters!" },
+    { category: "Family", question: "How many sons does Tim have?", choices: ["3", "4", "5", "Enough to field a basketball team"], answer: 2, funFact: "Five sons: Connor, Kimberly... wait, that's a daughter. Connor, Michael, Matthew, Timothy, and Kim is a daughter!" },
+    { category: "Love & Marriage", question: "Who is Tim married to?", choices: ["Maggie", "Kathleen", "Both at different times", "He's married to Jamaica Grill"], answer: 2, funFact: "Tim first married Maggie, then married Kathleen Iuchy." },
+  ],
+  "erin": [
+    { category: "Early Life", question: "What year was Erin born?", choices: ["1957", "1958", "1959", "1960"], answer: 1, funFact: "May 21, 1958 — born in Brookings (actually Crescent City, CA)." },
+    { category: "Early Life", question: "Where was Erin actually born?", choices: ["Brookings, Oregon", "Crescent City, California", "San Francisco", "Wherever the stork dropped her"], answer: 1, funFact: "The third Murphy kid born in Crescent City because Brookings STILL had no hospital!" },
+    { category: "Family", question: "What is Erin's birth order among the Murphy kids?", choices: ["5th", "7th", "6th", "The quiet one in the middle"], answer: 2, funFact: "6th child — the 5th daughter." },
+    { category: "Adventure", question: "Where did Erin move to in 1981?", choices: ["New York City", "San Francisco", "London", "Back to Wisconsin"], answer: 1, funFact: "Erin moved to San Francisco in 1981!" },
+    { category: "Love & Marriage", question: "Who is Erin married to?", choices: ["Randy Smith", "Patrick Smith", "John Smith", "Agent Smith"], answer: 0, funFact: "Erin married Randall 'Randy' Smith." },
+  ],
+  "megan": [
+    { category: "Early Life", question: "What year was Megan born?", choices: ["1959", "1960", "1961", "1962"], answer: 1, funFact: "June 14, 1960 — born in Willits, California." },
+    { category: "Early Life", question: "Where was Megan born?", choices: ["Brookings, Oregon", "Auburn, California", "Willits, California", "Guam"], answer: 2, funFact: "Willits, California — a small town in Mendocino County." },
+    { category: "Family", question: "What is Megan's birth order among the Murphy kids?", choices: ["5th", "6th", "7th", "The baby... almost"], answer: 2, funFact: "7th child — the 6th daughter. Only Joey came after her." },
+    { category: "School", question: "Where did Megan go to study in 1978?", choices: ["University of Guam", "Ballet school in San Francisco", "Art school in New York", "Surfing academy in Hawaii"], answer: 1, funFact: "Megan went to ballet school in San Francisco!" },
+    { category: "Love & Marriage", question: "Who is Megan married to?", choices: ["John Grensback", "Andrew Larson", "Kim Metheny", "Misha Moore"], answer: 0, funFact: "Megan married John Grensback." },
+    { category: "Family", question: "How many of Megan's children are adopted?", choices: ["None", "1", "2", "All of them"], answer: 2, funFact: "Sophie and Chace were both adopted — and very much Murphys!" },
+  ],
+  "joey-sr": [
+    { category: "Early Life", question: "What year was Joey born?", choices: ["1962", "1963", "1964", "1965"], answer: 2, funFact: "June 18, 1964 — born in San Jose, California." },
+    { category: "Early Life", question: "Where was Joey born?", choices: ["Guam", "San Jose, California", "Auburn, California", "Kings Beach, California"], answer: 1, funFact: "San Jose, CA — the last Murphy kid, born just before the family's big move to Guam." },
+    { category: "Family", question: "What is Joey's birth order among the Murphy kids?", choices: ["6th", "7th", "8th", "The baby — and he never lets anyone forget it"], answer: 2, funFact: "The 8th and final child — the 2nd son. The baby of the family!" },
+    { category: "Family", question: "How old was Joey when the family moved to Guam?", choices: ["6 months", "About 2 years old", "5 years old", "He was born there"], answer: 1, funFact: "Joey was about 2 when the family moved to Guam in July 1966." },
+    { category: "Love & Marriage", question: "Who is Joey married to?", choices: ["Margie Teteo", "Eva Cruz", "Kathleen Iuchy", "A mystery woman"], answer: 0, funFact: "Joey married Margie Teteo." },
+  ],
+  "leo": [
+    { category: "Early Life", question: "What year was Leo born?", choices: ["1972", "1973", "1974", "1975"], answer: 1, funFact: "April 30, 1973 — born in Portland, Oregon." },
+    { category: "Early Life", question: "Where was Leo born?", choices: ["Guam", "Portland, Oregon", "San Francisco", "Oshkosh, Wisconsin"], answer: 1, funFact: "Portland, Oregon — before the family moved back to Guam." },
+    { category: "Family", question: "What is Leo's birth order among Marion's grandchildren?", choices: ["2nd", "3rd", "4th", "5th"], answer: 2, funFact: "The 4th grandchild — after Seth, Kristan, and Melissa." },
+    { category: "Family", question: "Who is Leo's mother?", choices: ["Colleen", "Maureen", "Shannon", "Erin"], answer: 2, funFact: "Shannon — the 3rd Murphy daughter." },
+    { category: "Family", question: "How many kids does Leo have?", choices: ["4", "5", "6", "He lost count after the 4th"], answer: 2, funFact: "Six: Chloe, Justin, Rain, Maia, Isaiah, and Noelle!" },
+    { category: "Family", question: "Who is Leo married to?", choices: ["Donna Hattori", "Eva Cruz Babauta", "Shannon Wescom", "His laptop"], answer: 1, funFact: "Leo is married to Eva Cruz Babauta." },
+  ],
+  "kat": [
+    { category: "Early Life", question: "What year was Kat born?", choices: ["1974", "1975", "1976", "1977"], answer: 1, funFact: "1975 — the same year as cousins Katie and Heidi!" },
+    { category: "Family", question: "Which two cousins share Kat's birth year?", choices: ["Ana and Connor", "Katie and Heidi", "Seth and Kristan", "Leo and Melissa"], answer: 1, funFact: "Katie Cook and Heidi Butler were all born in 1975 — a triple Murphy year!" },
+    { category: "Family", question: "Who is Kat's mother?", choices: ["Colleen", "Maureen", "Shannon", "Megan"], answer: 2, funFact: "Shannon — Kat is Leo and Ana's sister." },
+    { category: "Love & Marriage", question: "Where did Kat marry Chris Barnett?", choices: ["At a church in Guam", "At the Yona house", "On the beach", "In Las Vegas"], answer: 1, funFact: "Kat married Chris Barnett in 1996 at Joe & Marion's new Yona house." },
+  ],
+  "ana": [
+    { category: "Early Life", question: "What year was Ana born?", choices: ["1982", "1983", "1984", "1985"], answer: 1, funFact: "1983 — the same year as cousin Connor!" },
+    { category: "Family", question: "Which cousin shares Ana's birth year?", choices: ["Katie", "Heidi", "Connor", "Chris"], answer: 2, funFact: "Connor Murphy — both born in 1983!" },
+    { category: "Family", question: "Who is Ana's mother?", choices: ["Erin", "Megan", "Shannon", "Maureen"], answer: 2, funFact: "Shannon — Ana is Leo and Kat's sister." },
+    { category: "Family", question: "How many children does Ana have?", choices: ["1", "2", "3", "A whole crew"], answer: 2, funFact: "Three: Isabella, Joey Lucia, and Blake!" },
+  ],
+};
+
+// =====================================================
 // "ABOUT YOU" QUESTION BANK (53 questions)
 // =====================================================
 const ABOUT_QUESTIONS = [

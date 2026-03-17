@@ -2205,7 +2205,7 @@ const FAMILY_TREE = {
   "leland-sr": { name: "Leland Bettis", gen: 2, parent: null, spouseOf: "melissa", searchNames: ["leland bettis sr"] },
   "adeline": { name: "Adeline Arriola", gen: 2, parent: null, spouseOf: "dominic", searchNames: ["adeline", "adeline arriola"] },
   "david-w": { name: "David Weingarten", gen: 2, parent: null, spouseOf: "kat", searchNames: ["david", "david weingarten"] },
-  "julius": { name: "Julius Darby", gen: 2, parent: null, spouseOf: "heidi", searchNames: ["julius", "julius darby"] },
+  "julius": { name: "Julius Darby", gen: 2, parent: null, spouseOf: "heidi", searchNames: ["julius", "julius darby"], excluded: true },
   "vanessa": { name: "Vanessa Hall", gen: 2, parent: null, spouseOf: "danny", searchNames: ["vanessa", "vanessa hall"] },
   "ald": { name: "Ald Matias", gen: 2, parent: null, spouseOf: "connor", searchNames: ["ald", "ald matias"] },
   "cjay": { name: "C Jay Diego", gen: 2, parent: null, spouseOf: "kimberly", searchNames: ["c jay", "c jay diego", "cjay"] },
@@ -2291,7 +2291,7 @@ function getFamilyChildren(memberId) {
   const parentIds = [memberId];
   if (member && member.spouseOf) parentIds.push(member.spouseOf);
   return Object.entries(FAMILY_TREE)
-    .filter(([_, m]) => parentIds.includes(m.parent))
+    .filter(([_, m]) => parentIds.includes(m.parent) && !m.excluded)
     .map(([id, m]) => ({ id, ...m }));
 }
 
@@ -2299,7 +2299,7 @@ function getFamilySiblings(memberId) {
   const member = FAMILY_TREE[memberId];
   if (!member || !member.parent) return [];
   return Object.entries(FAMILY_TREE)
-    .filter(([id, m]) => m.parent === member.parent && id !== memberId)
+    .filter(([id, m]) => m.parent === member.parent && id !== memberId && !m.excluded)
     .map(([id, m]) => ({ id, ...m }));
 }
 
@@ -2355,7 +2355,7 @@ function buildFamilyPickerOptions() {
   const genLabels = { 1: "Children of Joe & Marion", 2: "Grandchildren", 3: "Great-Grandchildren", 4: "Great-Great-Grandchildren" };
   [1, 2, 3, 4].forEach(gen => {
     const members = Object.entries(FAMILY_TREE)
-      .filter(([_, m]) => m.gen === gen)
+      .filter(([_, m]) => m.gen === gen && !m.excluded)
       .sort((a, b) => a[1].name.localeCompare(b[1].name));
     if (members.length === 0) return;
     const group = document.createElement('optgroup');

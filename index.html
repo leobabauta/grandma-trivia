@@ -1250,8 +1250,30 @@ select.family-select option {
   </div>
   <p style="color:var(--white-dim);font-size:0.85rem;margin-top:1rem;">More trivia games coming soon as we collect answers!</p>
 
+  <button class="link-btn" onclick="showAnswerAboutFamily()">Answer Questions About a Family Member</button>
   <button class="link-btn" onclick="showMyAnswers()">Review Answers About Me</button>
   <button class="link-btn" onclick="logout()">Log Out</button>
+</div>
+
+<!-- ========== ANSWER ABOUT FAMILY MEMBER SCREEN ========== -->
+<div id="answer-family-screen" class="screen">
+  <button class="link-btn" onclick="showScreen('game-select-screen')" style="align-self:flex-start;margin-bottom:1rem;">&larr; Back</button>
+  <h1 class="title" style="font-size:2rem;margin-bottom:0.5rem;">Tell Us About Someone</h1>
+  <p class="subtitle" style="margin-bottom:1.5rem;">Help build a trivia game about a family member!</p>
+
+  <div class="card" style="max-width:500px;">
+    <h2>Choose a Family Member</h2>
+    <select class="family-select" id="answer-family-select" onchange="loadFamilyQuestions()">
+      <option value="">-- Select someone --</option>
+    </select>
+  </div>
+
+  <div id="answer-family-questions" style="width:100%;max-width:560px;"></div>
+  <div id="answer-family-actions" style="display:none;margin-top:1rem;">
+    <button class="btn btn-primary" onclick="submitFamilyDirectAnswers()">Save Answers</button>
+    <p class="error-msg" id="answer-family-error" style="display:none"></p>
+    <p id="answer-family-success" style="display:none;color:var(--gold);margin-top:0.8rem;font-weight:600;"></p>
+  </div>
 </div>
 
 <!-- ========== MY ANSWERS SCREEN ========== -->
@@ -4064,6 +4086,147 @@ function renderHighScores(scores) {
 
 function playAgainSolo() {
   showGameSelectScreen();
+}
+
+// =====================================================
+// ANSWER ABOUT A SPECIFIC FAMILY MEMBER
+// =====================================================
+function showAnswerAboutFamily() {
+  const select = document.getElementById('answer-family-select');
+  select.innerHTML = '<option value="">-- Select someone --</option>';
+  document.getElementById('answer-family-questions').innerHTML = '';
+  document.getElementById('answer-family-actions').style.display = 'none';
+
+  if (!currentFamilyMemberId) {
+    showScreen('answer-family-screen');
+    return;
+  }
+
+  // Build list of close family: parent, spouse, siblings, children
+  const family = getImmediateFamily(currentFamilyMemberId);
+  const members = [];
+
+  if (family.parent && family.parent.id !== 'joe-marion') {
+    members.push(family.parent);
+  }
+  // Add spouse
+  const member = FAMILY_TREE[currentFamilyMemberId];
+  if (member && member.spouseOf) {
+    const spouse = FAMILY_TREE[member.spouseOf];
+    if (spouse) members.push({ id: member.spouseOf, ...spouse });
+  }
+  // Check if someone is spouse of current member
+  Object.entries(FAMILY_TREE).forEach(([id, m]) => {
+    if (m.spouseOf === currentFamilyMemberId) members.push({ id, ...m });
+  });
+
+  family.siblings.forEach(s => members.push(s));
+  family.children.forEach(c => members.push(c));
+
+  // Deduplicate
+  const seen = new Set();
+  members.forEach(m => {
+    if (seen.has(m.id)) return;
+    seen.add(m.id);
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    opt.textContent = m.name;
+    select.appendChild(opt);
+  });
+
+  showScreen('answer-family-screen');
+}
+
+let answerFamilyTargetId = null;
+let answerFamilyQuestionIds = [];
+
+function loadFamilyQuestions() {
+  const select = document.getElementById('answer-family-select');
+  const memberId = select.value;
+  const container = document.getElementById('answer-family-questions');
+  const actions = document.getElementById('answer-family-actions');
+  container.innerHTML = '';
+  actions.style.display = 'none';
+  document.getElementById('answer-family-success').style.display = 'none';
+
+  if (!memberId) return;
+
+  answerFamilyTargetId = memberId;
+  const member = FAMILY_TREE[memberId];
+  const firstName = member.name.split(' ')[0];
+
+  // Load already-answered questions for this member
+  db.ref(`familyAnswers/${memberId}`).once('value', snap => {
+    const existing = snap.val() || {};
+    const answeredQIds = Object.keys(existing).map(Number);
+    const unanswered = ABOUT_QUESTIONS.filter(q => !answeredQIds.includes(q.id));
+
+    if (unanswered.length === 0) {
+      container.innerHTML = `<div class="card" style="max-width:560px;text-align:center;"><p style="color:var(--gold);">All questions about ${escapeHtml(firstName)} have been answered! Thanks!</p></div>`;
+      return;
+    }
+
+    // Pick up to 5 unanswered questions
+    const picks = pickRandom(unanswered.map(q => q.id), Math.min(5, unanswered.length));
+    answerFamilyQuestionIds = picks;
+
+    picks.forEach((qId, i) => {
+      const q = ABOUT_QUESTIONS.find(aq => aq.id === qId);
+      if (!q) return;
+      const rephrased = rephraseFamilyQuestion(q.question, firstName);
+      const card = document.createElement('div');
+      card.className = 'about-question-card';
+      card.innerHTML = `
+        <div class="about-q-label">About <span class="about-q-family-name">${escapeHtml(firstName)}</span> — Question ${i + 1} of ${picks.length}</div>
+        <div class="about-q-text">${escapeHtml(rephrased)}</div>
+        <div id="af-${qId}-input">
+          <textarea id="af-${qId}" placeholder="Your answer..."></textarea>
+          <button type="button" class="btn btn-secondary" style="font-size:0.8rem;padding:0.4rem 1rem;margin-top:0.3rem;" onclick="document.getElementById('af-${qId}-input').style.display='none';document.getElementById('af-${qId}-skipped').style.display='block';document.getElementById('af-${qId}').value='';">I don't know</button>
+        </div>
+        <div id="af-${qId}-skipped" style="display:none;color:var(--white-dim);font-style:italic;padding:0.5rem 0;">Skipped — no worries!</div>
+      `;
+      container.appendChild(card);
+    });
+
+    actions.style.display = 'block';
+  });
+}
+
+function submitFamilyDirectAnswers() {
+  const updates = {};
+  let anyAnswered = false;
+
+  answerFamilyQuestionIds.forEach(qId => {
+    const textarea = document.getElementById(`af-${qId}`);
+    const answer = textarea ? textarea.value.trim() : '';
+    if (answer && !isJunkAnswer(answer)) {
+      updates[`familyAnswers/${answerFamilyTargetId}/${qId}/${currentVisitorId}`] = {
+        answer,
+        answeredByName: currentVisitorName,
+        answeredAt: firebase.database.ServerValue.TIMESTAMP
+      };
+      anyAnswered = true;
+    }
+  });
+
+  if (!anyAnswered) {
+    showError('answer-family-error', 'Please answer at least one question.');
+    return;
+  }
+
+  db.ref().update(updates).then(() => {
+    const member = FAMILY_TREE[answerFamilyTargetId];
+    const firstName = member ? member.name.split(' ')[0] : 'them';
+    const successEl = document.getElementById('answer-family-success');
+    successEl.textContent = `Saved! Thanks for sharing about ${firstName}.`;
+    successEl.style.display = 'block';
+    document.getElementById('answer-family-actions').querySelector('.btn').style.display = 'none';
+    // Disable textareas
+    answerFamilyQuestionIds.forEach(qId => {
+      const ta = document.getElementById(`af-${qId}`);
+      if (ta) ta.disabled = true;
+    });
+  });
 }
 
 // =====================================================

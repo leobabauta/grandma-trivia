@@ -941,6 +941,52 @@ textarea:focus {
 }
 #solo-next-btn.visible { display: inline-block; }
 
+/* ===== GAME SELECTION CARDS ===== */
+.game-cards {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.game-card {
+  background: transparent;
+  border: 1px solid var(--blue);
+  border-radius: 8px;
+  padding: 1.2rem;
+  width: 140px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  font-family: inherit;
+  color: var(--white);
+}
+.game-card:hover {
+  border-color: var(--gold);
+  background: rgba(232,168,56,0.08);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.game-card-photo {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin: 0 auto 0.8rem;
+  border: 3px solid var(--white);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.game-card-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+}
+.game-card-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
 /* ===== CONSENT & FAMILY PICKER ===== */
 .consent-buttons {
   display: flex;
@@ -1193,13 +1239,18 @@ select.family-select option {
   </div>
   <p class="subtitle">Welcome back, <strong id="game-select-name" style="color:var(--gold);"></strong>!</p>
 
-  <div class="card" style="max-width:480px;text-align:center;">
-    <h2>Choose a Trivia Game</h2>
-    <button class="btn btn-primary" style="width:100%;margin-bottom:0.5rem;" onclick="startGameFlow('grandma-marion')">Grandma Marion Trivia</button>
-    <p style="color:var(--white-dim);font-size:0.85rem;margin-top:0.8rem;">More trivia games coming soon as we collect answers!</p>
+  <h2 style="color:var(--blue);text-transform:uppercase;letter-spacing:1.5px;font-size:1rem;margin-bottom:1rem;">Choose a Trivia Game</h2>
+  <div class="game-cards">
+    <button class="game-card" onclick="startGameFlow('grandma-marion')">
+      <div class="game-card-photo">
+        <img src="photos/marion-1.png" alt="Marion Murphy">
+      </div>
+      <div class="game-card-name">Marion Trivia</div>
+    </button>
   </div>
+  <p style="color:var(--white-dim);font-size:0.85rem;margin-top:1rem;">More trivia games coming soon as we collect answers!</p>
 
-  <button class="link-btn" onclick="showMyAnswers()">Review My Answers</button>
+  <button class="link-btn" onclick="showMyAnswers()">Review Answers About Me</button>
   <button class="link-btn" onclick="logout()">Log Out</button>
 </div>
 

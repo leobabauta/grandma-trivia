@@ -1250,6 +1250,7 @@ select.family-select option {
   </div>
   <p id="game-cards-loading-msg" style="color:var(--white-dim);font-size:0.85rem;margin-top:1rem;">More trivia games coming soon as we collect answers!</p>
 
+  <button class="link-btn" id="review-trivia-link" style="display:none;" onclick="showTriviaReview()">Review & Approve My Trivia Game</button>
   <button class="link-btn" onclick="showAnswerAboutFamily()">Answer Questions About a Family Member</button>
   <button class="link-btn" onclick="showMyAnswers()">Review Answers About Me</button>
   <button class="link-btn" id="admin-link" style="display:none;" onclick="showAdminPanel()">Admin Dashboard</button>
@@ -1275,10 +1276,33 @@ select.family-select option {
   </div>
 
   <div class="card" style="max-width:700px;">
+    <h2>Ready for Trivia Generation</h2>
+    <div id="admin-trivia-ready"><p style="color:var(--white-dim);">Loading...</p></div>
+  </div>
+
+  <div class="card" style="max-width:700px;">
     <h2>Fun Facts Submitted</h2>
     <div id="admin-funfacts"><p style="color:var(--white-dim);">Loading...</p></div>
   </div>
 
+  <button class="link-btn" style="margin-top:1.5rem;" onclick="showScreen('game-select-screen')">&larr; Back</button>
+</div>
+
+<!-- ========== TRIVIA REVIEW/APPROVAL SCREEN ========== -->
+<div id="trivia-review-screen" class="screen">
+  <button class="link-btn" onclick="showScreen('game-select-screen')" style="align-self:flex-start;margin-bottom:1rem;">&larr; Back</button>
+  <h1 class="title" style="font-size:2rem;margin-bottom:0.5rem;">Review Your Trivia Game</h1>
+  <p class="subtitle" id="trivia-review-subtitle" style="max-width:520px;text-align:center;">Check the answers below. Edit anything that's wrong, then approve to make your trivia game live!</p>
+
+  <div class="card" style="max-width:600px;" id="trivia-review-card">
+    <h2>Answers That Will Be Used</h2>
+    <div id="trivia-review-list"><p style="color:var(--white-dim);">Loading...</p></div>
+  </div>
+
+  <div id="trivia-review-actions" style="text-align:center;margin-top:1rem;">
+    <button class="btn btn-primary" onclick="approveTrivia()">Approve — Make My Trivia Game!</button>
+    <p id="trivia-review-msg" style="display:none;color:var(--gold);margin-top:1rem;font-weight:600;"></p>
+  </div>
   <button class="link-btn" style="margin-top:1.5rem;" onclick="showScreen('game-select-screen')">&larr; Back</button>
 </div>
 
@@ -3775,17 +3799,30 @@ function handleConsent(optedIn) {
 }
 
 function proceedAfterConsent() {
-  // Determine if we have anyone to ask about
+  // If user already has a generated trivia game, skip pre-game questions
+  if (currentFamilyMemberId) {
+    db.ref(`generatedGames/${currentFamilyMemberId}`).once('value', snap => {
+      if (snap.exists()) {
+        // They have a trivia game — skip pre-game, go to game selection
+        showGameSelectScreen();
+      } else {
+        startPreGameFlow();
+      }
+    });
+  } else {
+    startPreGameFlow();
+  }
+}
+
+function startPreGameFlow() {
   if (currentOptedIn) {
     startAboutPhase('pre');
   } else {
-    // Not opted in — check if any family members are opted in
     checkFamilyOptIns(optedInMembers => {
       if (optedInMembers.length > 0) {
         startAboutPhase('pre');
       } else {
-        // Nobody to ask about, go straight to trivia
-        startSoloGame();
+        showGameSelectScreen();
       }
     });
   }
@@ -4625,6 +4662,193 @@ function submitFamilyDirectAnswers() {
 }
 
 // =====================================================
+// TRIVIA REVIEW & APPROVAL
+// =====================================================
+function checkTriviaReadiness() {
+  // Show "Review & Approve" link if user has enough answers but no generated game yet
+  if (!currentFamilyMemberId || !currentOptedIn) return;
+
+  db.ref(`generatedGames/${currentFamilyMemberId}`).once('value', gameSnap => {
+    if (gameSnap.exists()) return; // already has a game
+
+    db.ref(`triviaApproval/${currentFamilyMemberId}`).once('value', approvalSnap => {
+      if (approvalSnap.exists()) {
+        // Already approved, waiting for generation
+        const link = document.getElementById('review-trivia-link');
+        link.textContent = 'Your Trivia Game — Approved, Coming Soon!';
+        link.style.display = 'inline-block';
+        link.onclick = null;
+        link.style.cursor = 'default';
+        return;
+      }
+
+      // Count total answers
+      getTotalAnswerCount(currentFamilyMemberId, totalCount => {
+        if (totalCount >= ABOUT_ANSWERS_NEEDED) {
+          document.getElementById('review-trivia-link').style.display = 'inline-block';
+
+          // Check if we already notified them
+          db.ref(`triviaNotified/${currentFamilyMemberId}`).once('value', notifSnap => {
+            if (!notifSnap.exists()) {
+              db.ref(`triviaNotified/${currentFamilyMemberId}`).set(true);
+              // Flag for admin
+              db.ref(`triviaReady/${currentFamilyMemberId}`).set({
+                name: currentVisitorName,
+                totalAnswers: totalCount,
+                readyAt: firebase.database.ServerValue.TIMESTAMP
+              });
+            }
+          });
+        }
+      });
+    });
+  });
+}
+
+function getTotalAnswerCount(memberId, callback) {
+  const autoCount = (MEMBER_TRIVIA[memberId] || []).length + getAutoGeneratedTrivia(memberId).length;
+
+  Promise.all([
+    db.ref('users').orderByChild('familyMemberId').equalTo(memberId).once('value'),
+    db.ref(`familyAnswers/${memberId}`).once('value'),
+  ]).then(([userSnap, famSnap]) => {
+    let selfCount = 0;
+    userSnap.forEach(child => {
+      const u = child.val();
+      if (u.aboutAnswers) selfCount += Object.keys(u.aboutAnswers).length;
+    });
+
+    let famCount = 0;
+    if (famSnap.val()) {
+      Object.values(famSnap.val()).forEach(answerers => {
+        famCount += Object.keys(answerers).length;
+      });
+    }
+
+    callback(selfCount + famCount + autoCount);
+  });
+}
+
+function showTriviaReview() {
+  showScreen('trivia-review-screen');
+  const list = document.getElementById('trivia-review-list');
+  list.innerHTML = '<p style="color:var(--white-dim);">Loading...</p>';
+
+  const memberId = currentFamilyMemberId;
+  const member = FAMILY_TREE[memberId];
+  const firstName = member ? member.name.split(' ')[0] : currentVisitorName;
+
+  document.getElementById('trivia-review-subtitle').textContent =
+    `Here are the answers we've collected for "${firstName} Trivia." Edit anything that's wrong, then approve!`;
+
+  // Load all answer sources
+  Promise.all([
+    db.ref('users').orderByChild('familyMemberId').equalTo(memberId).once('value'),
+    db.ref(`familyAnswers/${memberId}`).once('value'),
+  ]).then(([userSnap, famSnap]) => {
+    const rows = [];
+
+    // Auto-generated trivia
+    const memberTrivia = MEMBER_TRIVIA[memberId] || [];
+    const autoTrivia = getAutoGeneratedTrivia(memberId);
+    memberTrivia.forEach((q, i) => {
+      rows.push({ key: `mt-${i}`, question: q.question, answer: q.choices[q.answer], source: 'Timeline', editable: true });
+    });
+    autoTrivia.forEach((q, i) => {
+      rows.push({ key: `auto-${i}`, question: q.question, answer: q.correctAnswer || (q.choices ? q.choices[q.answer] : ''), source: 'Auto', editable: true });
+    });
+
+    // Self answers
+    userSnap.forEach(child => {
+      const u = child.val();
+      if (u.aboutAnswers) {
+        Object.entries(u.aboutAnswers).forEach(([qId, data]) => {
+          const q = ABOUT_QUESTIONS.find(aq => aq.id === Number(qId));
+          if (!q) return;
+          const answer = typeof data === 'object' ? data.answer : data;
+          rows.push({ key: `self-${qId}`, question: q.question, answer, source: 'Self', editable: true });
+        });
+      }
+    });
+
+    // Family answers
+    const famData = famSnap.val() || {};
+    Object.entries(famData).forEach(([qId, answerers]) => {
+      Object.entries(answerers).forEach(([uid, entry]) => {
+        const q = ABOUT_QUESTIONS.find(aq => aq.id === Number(qId));
+        if (!q) return;
+        const answer = typeof entry === 'object' ? entry.answer : entry;
+        const by = (typeof entry === 'object' && entry.answeredByName) ? entry.answeredByName : 'Family';
+        rows.push({ key: `fam-${qId}-${uid}`, question: q.question, answer, source: by, editable: true });
+      });
+    });
+
+    if (rows.length === 0) {
+      list.innerHTML = '<p style="color:var(--white-dim);">No answers collected yet.</p>';
+      return;
+    }
+
+    list.innerHTML = rows.map(r => `
+      <div class="my-answer-row">
+        <div class="question-label">${escapeHtml(r.question)}</div>
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem;">
+          <input type="text" id="review-${r.key}" value="${escapeHtml(r.answer)}" style="flex:1;margin-bottom:0;">
+          <span style="font-size:0.75rem;color:var(--white-dim);white-space:nowrap;">${escapeHtml(r.source)}</span>
+        </div>
+      </div>
+    `).join('');
+  });
+}
+
+function approveTrivia() {
+  const memberId = currentFamilyMemberId;
+  const member = FAMILY_TREE[memberId];
+  const firstName = member ? member.name.split(' ')[0] : currentVisitorName;
+
+  // Collect all edited answers from the review form
+  const reviewInputs = document.querySelectorAll('[id^="review-"]');
+  const approvedAnswers = {};
+  reviewInputs.forEach(input => {
+    const key = input.id.replace('review-', '');
+    approvedAnswers[key] = input.value.trim();
+  });
+
+  // Save approval to Firebase
+  db.ref(`triviaApproval/${memberId}`).set({
+    approvedBy: currentVisitorName,
+    approvedAt: firebase.database.ServerValue.TIMESTAMP,
+    answers: approvedAnswers,
+  }).then(() => {
+    // Notify admin
+    db.ref(`triviaReady/${memberId}`).update({
+      approved: true,
+      approvedAt: firebase.database.ServerValue.TIMESTAMP,
+    });
+
+    const msg = document.getElementById('trivia-review-msg');
+    msg.textContent = `Approved! ${firstName} Trivia will be generated soon. We'll let you know when it's live!`;
+    msg.style.display = 'block';
+    document.querySelector('#trivia-review-actions .btn').style.display = 'none';
+
+    // Update the link on game selection
+    const link = document.getElementById('review-trivia-link');
+    link.textContent = 'Your Trivia Game — Approved, Coming Soon!';
+    link.onclick = null;
+    link.style.cursor = 'default';
+  });
+}
+
+// Send notification email (admin function)
+function sendTriviaReadyEmail(memberId, memberName, email) {
+  const reviewUrl = `${window.location.origin}${window.location.pathname}?review=${memberId}`;
+  const subject = `Your Murphy Trivia Game is Ready for Review!`;
+  const body = `Hi ${memberName}!\n\nGreat news — we've collected enough answers to create "${memberName} Trivia" for the family to play!\n\nBefore we make it live, please review your answers and approve:\n${reviewUrl}\n\nJust sign in, review the questions, edit anything that's wrong, and click Approve.\n\nThe Murphy Family Trivia Project`;
+
+  // Open mailto as fallback
+  window.open(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+}
+
+// =====================================================
 // ADMIN
 // =====================================================
 const ADMIN_EMAIL = 'leo.babauta@gmail.com';
@@ -4639,8 +4863,43 @@ function checkAdmin() {
 function showAdminPanel() {
   showScreen('admin-screen');
   loadAdminGameActivity();
+  loadAdminTriviaReady();
   loadAdminFunFacts();
   buildAdminMemberSelect();
+}
+
+function loadAdminTriviaReady() {
+  const container = document.getElementById('admin-trivia-ready');
+  container.innerHTML = '<p style="color:var(--white-dim);">Loading...</p>';
+
+  db.ref('triviaReady').once('value', snap => {
+    const data = snap.val();
+    if (!data) {
+      container.innerHTML = '<p style="color:var(--white-dim);">No one ready yet.</p>';
+      return;
+    }
+
+    const rows = Object.entries(data).map(([memberId, info]) => {
+      const member = FAMILY_TREE[memberId];
+      const name = info.name || (member ? member.name : memberId);
+      const approved = info.approved ? '<span style="color:var(--gold);">Approved</span>' : '<span style="color:var(--coral);">Pending review</span>';
+      const hasGame = false; // We'll check below
+
+      // Find their email
+      let email = '';
+      const emailEntry = Object.entries(EMAIL_TO_FAMILY).find(([e, id]) => id === memberId);
+      if (emailEntry) email = emailEntry[0];
+
+      return `<div style="display:flex;align-items:center;gap:0.8rem;padding:0.5rem 0;border-bottom:1px solid rgba(126,184,218,0.1);">
+        <span style="flex:1;color:var(--white);">${escapeHtml(name)}</span>
+        <span style="font-size:0.85rem;">${approved}</span>
+        ${email && !info.approved ? `<button class="btn btn-secondary" style="font-size:0.75rem;padding:0.3rem 0.6rem;" onclick="sendTriviaReadyEmail('${memberId}','${escapeHtml(name)}','${email}')">Email</button>` : ''}
+        ${info.approved ? `<button class="btn btn-secondary" style="font-size:0.75rem;padding:0.3rem 0.6rem;" onclick="alert('Run: node generate-trivia.js ${memberId}')">Generate</button>` : ''}
+      </div>`;
+    });
+
+    container.innerHTML = rows.join('');
+  });
 }
 
 function loadAdminGameActivity() {
@@ -4855,8 +5114,15 @@ function loadAdminFunFacts() {
 function showGameSelectScreen() {
   document.getElementById('game-select-name').textContent = currentVisitorName;
   checkAdmin();
+  checkTriviaReadiness();
   loadGeneratedGameCards();
   showScreen('game-select-screen');
+
+  // Check for ?review= URL param
+  const reviewId = new URLSearchParams(window.location.search).get('review');
+  if (reviewId && reviewId === currentFamilyMemberId) {
+    showTriviaReview();
+  }
 }
 
 function loadGeneratedGameCards() {

@@ -4143,6 +4143,14 @@ function showAnswerAboutFamily() {
     return;
   }
 
+  // Add "Myself" as the first option
+  if (currentOptedIn) {
+    const selfOpt = document.createElement('option');
+    selfOpt.value = '__self__';
+    selfOpt.textContent = 'Myself';
+    select.appendChild(selfOpt);
+  }
+
   // Build list of close family: parent, spouse, siblings, children
   const family = getImmediateFamily(currentFamilyMemberId);
   const members = [];
@@ -4193,6 +4201,41 @@ function loadFamilyQuestions() {
   if (!memberId) return;
 
   answerFamilyTargetId = memberId;
+  const isSelf = memberId === '__self__';
+
+  if (isSelf) {
+    // Load self's unanswered questions
+    db.ref(`users/${currentVisitorId}/aboutAnswers`).once('value', snap => {
+      const existing = snap.val() || {};
+      const answeredQIds = Object.keys(existing).map(Number);
+      const unanswered = ABOUT_QUESTIONS.filter(q => !answeredQIds.includes(q.id));
+
+      if (unanswered.length === 0) {
+        container.innerHTML = `<div class="card" style="max-width:560px;text-align:center;"><p style="color:var(--gold);">You've answered all questions! Nice work!</p></div>`;
+        return;
+      }
+
+      const picks = pickRandom(unanswered.map(q => q.id), Math.min(5, unanswered.length));
+      answerFamilyQuestionIds = picks;
+
+      picks.forEach((qId, i) => {
+        const q = ABOUT_QUESTIONS.find(aq => aq.id === qId);
+        if (!q) return;
+        const card = document.createElement('div');
+        card.className = 'about-question-card';
+        card.innerHTML = `
+          <div class="about-q-label">${escapeHtml(q.category)} — Question ${i + 1} of ${picks.length}</div>
+          <div class="about-q-text">${escapeHtml(q.question)}</div>
+          <textarea id="af-${qId}" placeholder="Your answer..."></textarea>
+        `;
+        container.appendChild(card);
+      });
+
+      actions.style.display = 'block';
+    });
+    return;
+  }
+
   const member = FAMILY_TREE[memberId];
   const firstName = member.name.split(' ')[0];
 
@@ -4236,16 +4279,24 @@ function loadFamilyQuestions() {
 function submitFamilyDirectAnswers() {
   const updates = {};
   let anyAnswered = false;
+  const isSelf = answerFamilyTargetId === '__self__';
 
   answerFamilyQuestionIds.forEach(qId => {
     const textarea = document.getElementById(`af-${qId}`);
     const answer = textarea ? textarea.value.trim() : '';
     if (answer && !isJunkAnswer(answer)) {
-      updates[`familyAnswers/${answerFamilyTargetId}/${qId}/${currentVisitorId}`] = {
-        answer,
-        answeredByName: currentVisitorName,
-        answeredAt: firebase.database.ServerValue.TIMESTAMP
-      };
+      if (isSelf) {
+        updates[`users/${currentVisitorId}/aboutAnswers/${qId}`] = {
+          answer,
+          answeredAt: firebase.database.ServerValue.TIMESTAMP
+        };
+      } else {
+        updates[`familyAnswers/${answerFamilyTargetId}/${qId}/${currentVisitorId}`] = {
+          answer,
+          answeredByName: currentVisitorName,
+          answeredAt: firebase.database.ServerValue.TIMESTAMP
+        };
+      }
       anyAnswered = true;
     }
   });
@@ -4256,10 +4307,14 @@ function submitFamilyDirectAnswers() {
   }
 
   db.ref().update(updates).then(() => {
-    const member = FAMILY_TREE[answerFamilyTargetId];
-    const firstName = member ? member.name.split(' ')[0] : 'them';
     const successEl = document.getElementById('answer-family-success');
-    successEl.textContent = `Saved! Thanks for sharing about ${firstName}.`;
+    if (isSelf) {
+      successEl.textContent = 'Saved! Thanks for answering about yourself.';
+    } else {
+      const member = FAMILY_TREE[answerFamilyTargetId];
+      const firstName = member ? member.name.split(' ')[0] : 'them';
+      successEl.textContent = `Saved! Thanks for sharing about ${firstName}.`;
+    }
     successEl.style.display = 'block';
     document.getElementById('answer-family-actions').querySelector('.btn').style.display = 'none';
     // Disable textareas
@@ -4437,10 +4492,14 @@ function showMyAnswers() {
     }
     famList.innerHTML = rows.map(r =>
       `<div class="family-answer-row">
-        <div class="answerer-name">${escapeHtml(r.answererName)}</div>
+        <div class="answerer-name">Answered by ${escapeHtml(r.answererName)}</div>
         <div class="question-label">${r.label}</div>
-        <p class="answer-text">${escapeHtml(r.answerText)}</p>
-        <button class="btn-danger" onclick="deleteFamilyAnswerAboutMe(${r.qId}, '${r.uid}')">Delete</button>
+        <textarea id="fam-answer-${r.qId}-${r.uid}">${escapeHtml(r.answerText)}</textarea>
+        <div class="row-actions">
+          <button class="btn btn-secondary" style="font-size:0.85rem;padding:0.3rem 1rem;" onclick="saveFamilyAnswerAboutMe(${r.qId}, '${r.uid}')">Save</button>
+          <button class="btn-danger" onclick="deleteFamilyAnswerAboutMe(${r.qId}, '${r.uid}')">Delete</button>
+          <span class="save-indicator" id="fam-save-ind-${r.qId}-${r.uid}">Saved!</span>
+        </div>
       </div>`
     ).join('');
   });
@@ -4464,6 +4523,20 @@ function deleteMyAnswer(questionId) {
   if (!confirm('Delete this answer?')) return;
   db.ref(`users/${currentVisitorId}/aboutAnswers/${questionId}`).remove().then(() => {
     showMyAnswers(); // refresh
+  });
+}
+
+function saveFamilyAnswerAboutMe(questionId, answeredByUserId) {
+  const textarea = document.getElementById(`fam-answer-${questionId}-${answeredByUserId}`);
+  if (!textarea) return;
+  const newAnswer = textarea.value.trim();
+  if (!newAnswer) return;
+  db.ref(`familyAnswers/${currentFamilyMemberId}/${questionId}/${answeredByUserId}/answer`).set(newAnswer).then(() => {
+    const ind = document.getElementById(`fam-save-ind-${questionId}-${answeredByUserId}`);
+    if (ind) {
+      ind.classList.add('visible');
+      setTimeout(() => ind.classList.remove('visible'), 1500);
+    }
   });
 }
 

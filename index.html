@@ -1108,6 +1108,22 @@ select.family-select option {
   </div>
 </div>
 
+<!-- ========== GAME SELECTION SCREEN ========== -->
+<div id="game-select-screen" class="screen">
+  <div class="fancy-title" style="font-size:3rem;" aria-label="You Don't Know Murphys">
+    <span class="c-gold">Y</span><span class="c-coral filled">o</span><span class="c-white">u</span><span class="space"> </span><span class="c-blue filled">D</span><span class="c-gold">o</span><span class="c-coral filled">n</span><span class="c-white">'</span><span class="c-blue">t</span><span class="space"> </span><span class="c-gold filled">K</span><span class="c-coral">n</span><span class="c-white filled">o</span><span class="c-blue">w</span><span class="space"> </span><span class="c-gold">M</span><span class="c-coral filled">u</span><span class="c-white">r</span><span class="c-blue filled">p</span><span class="c-gold">h</span><span class="c-coral filled">y</span><span class="c-white">s</span>
+  </div>
+  <p class="subtitle">Welcome back, <strong id="game-select-name" style="color:var(--gold);"></strong>!</p>
+
+  <div class="card" style="max-width:480px;text-align:center;">
+    <h2>Choose a Trivia Game</h2>
+    <button class="btn btn-primary" style="width:100%;margin-bottom:0.5rem;" onclick="startGameFlow('grandma-marion')">Grandma Marion Trivia</button>
+    <p style="color:var(--white-dim);font-size:0.85rem;margin-top:0.8rem;">More trivia games coming soon as we collect answers!</p>
+  </div>
+
+  <button class="link-btn" onclick="logout()">Log Out</button>
+</div>
+
 <!-- ========== JOIN SCREEN (multiplayer mode) ========== -->
 <div id="join-screen" class="screen">
   <div class="fancy-title" aria-label="You Don't Know Murphys">
@@ -1157,6 +1173,7 @@ select.family-select option {
     </div>
     <div style="display:flex;align-items:center;gap:0.8rem;">
       <span id="progress-text" onclick="presenterResetPrompt()">Q 1/10</span>
+      <button class="icon-btn" id="quit-btn" style="display:none" onclick="quitGame()" title="Quit game"><svg viewBox="0 0 24 24"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg></button>
       <button class="icon-btn" id="mute-btn" style="display:none" onclick="toggleMute()" title="Mute/Unmute sounds for all"><svg id="mute-icon" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></button>
       <button class="icon-btn" id="gear-btn" style="display:none" onclick="openManagePlayers()" title="Manage Players"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
     </div>
@@ -1269,7 +1286,7 @@ select.family-select option {
     <p id="done-progress-text" style="margin-top:0.8rem;color:var(--white);font-weight:600;"></p>
     <p id="done-progress-msg" style="color:var(--white-dim);margin-top:0.5rem;font-size:0.95rem;"></p>
   </div>
-  <button class="btn btn-primary" style="margin-top:1.5rem;" onclick="playAgainSolo()">Play Again</button>
+  <button class="btn btn-primary" style="margin-top:1.5rem;" onclick="playAgainSolo()">Back to Games</button>
 </div>
 
 <script>
@@ -3267,6 +3284,7 @@ function startSoloGame() {
   // Hide multiplayer elements
   document.getElementById('presenter-panel').style.display = 'none';
   document.getElementById('timer-below').style.display = 'none';
+  document.getElementById('quit-btn').style.display = 'inline-block';
   document.getElementById('mute-btn').style.display = 'none';
   document.getElementById('gear-btn').style.display = 'none';
   document.getElementById('waiting-msg').style.display = 'none';
@@ -3468,7 +3486,40 @@ function renderHighScores(scores) {
 }
 
 function playAgainSolo() {
+  showGameSelectScreen();
+}
+
+// =====================================================
+// GAME SELECTION, QUIT, LOGOUT
+// =====================================================
+function showGameSelectScreen() {
+  document.getElementById('game-select-name').textContent = currentVisitorName;
+  showScreen('game-select-screen');
+}
+
+function startGameFlow(gameId) {
+  // For now only 'grandma-marion', but future-proofed
   startAboutPhase('pre');
+}
+
+function quitGame() {
+  if (!confirm('Quit this game? Your progress will be lost.')) return;
+  clearInterval(timerInterval);
+  document.getElementById('quit-btn').style.display = 'none';
+  showGameSelectScreen();
+}
+
+function logout() {
+  localStorage.removeItem('gt_visitorId');
+  localStorage.removeItem('gt_visitorEmail');
+  currentVisitorId = null;
+  currentVisitorName = '';
+  currentVisitorData = null;
+  currentFamilyMemberId = null;
+  currentOptedIn = false;
+  document.getElementById('signin-name').value = '';
+  document.getElementById('signin-email').value = '';
+  showScreen('signin-screen');
 }
 
 // =====================================================
@@ -3486,16 +3537,25 @@ if (GAME_MODE === 'multiplayer') {
     enterLobby();
   }
 } else {
-  // Solo mode — check for existing session and pre-fill
+  // Solo mode — check for existing session and auto-login
   const savedId = localStorage.getItem('gt_visitorId');
   if (savedId) {
     db.ref(`users/${savedId}`).once('value', snap => {
       if (snap.exists()) {
-        currentVisitorId = savedId;
-        currentVisitorData = snap.val();
-        currentVisitorName = currentVisitorData.name;
-        document.getElementById('signin-name').value = currentVisitorData.name;
-        document.getElementById('signin-email').value = currentVisitorData.email || localStorage.getItem('gt_visitorEmail') || '';
+        const data = snap.val();
+        // Only auto-login if they've completed consent (returning user)
+        if (data.optedIn !== undefined) {
+          currentVisitorId = savedId;
+          currentVisitorData = data;
+          currentVisitorName = data.name;
+          currentFamilyMemberId = data.familyMemberId || null;
+          currentOptedIn = !!data.optedIn;
+          showGameSelectScreen();
+        } else {
+          // Started but didn't finish setup — pre-fill sign-in
+          document.getElementById('signin-name').value = data.name;
+          document.getElementById('signin-email').value = data.email || localStorage.getItem('gt_visitorEmail') || '';
+        }
       }
     });
   }

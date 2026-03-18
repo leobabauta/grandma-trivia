@@ -10,6 +10,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
+<!-- EmailJS SDK for automated email notifications -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 
@@ -4916,12 +4919,13 @@ function checkTriviaReadiness() {
           db.ref(`triviaNotified/${currentFamilyMemberId}`).once('value', notifSnap => {
             if (!notifSnap.exists()) {
               db.ref(`triviaNotified/${currentFamilyMemberId}`).set(true);
-              // Flag for admin
               db.ref(`triviaReady/${currentFamilyMemberId}`).set({
                 name: currentVisitorName,
                 totalAnswers: totalCount,
                 readyAt: firebase.database.ServerValue.TIMESTAMP
               });
+              // Auto-send email notification
+              autoSendTriviaEmail(currentFamilyMemberId);
             }
           });
         }
@@ -5066,17 +5070,79 @@ function approveTrivia() {
 // Send notification email (admin function)
 function sendTriviaReadyEmail(memberId, memberName, email) {
   const reviewUrl = `${window.location.origin}${window.location.pathname}?review=${memberId}`;
+
+  // Try EmailJS first
+  if (typeof emailjs !== 'undefined' && EMAILJS_PUBLIC_KEY && EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE_ID) {
+    emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+      to_email: email,
+      to_name: memberName,
+      member_id: memberId,
+      review_url: reviewUrl,
+    }).then(() => {
+      db.ref(`triviaEmailed/${memberId}`).set({ emailedAt: firebase.database.ServerValue.TIMESTAMP, email });
+      alert(`Email sent to ${memberName} at ${email}!`);
+    }).catch(err => {
+      console.error('EmailJS error:', err);
+      // Fall back to mailto
+      openMailto(email, memberName, reviewUrl);
+    });
+  } else {
+    openMailto(email, memberName, reviewUrl);
+  }
+}
+
+function openMailto(email, memberName, reviewUrl) {
   const subject = `Your Murphy Trivia Game is Ready for Review!`;
   const body = `Hi ${memberName}!\n\nGreat news — we've collected enough answers to create "${memberName} Trivia" for the family to play!\n\nBefore we make it live, please review your answers and approve:\n${reviewUrl}\n\nJust sign in, review the questions, edit anything that's wrong, and click Approve.\n\nThe Murphy Family Trivia Project`;
-
-  // Open mailto as fallback
   window.open(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+}
+
+// Auto-send email when threshold is reached (called from checkTriviaReadiness)
+function autoSendTriviaEmail(memberId) {
+  const member = FAMILY_TREE[memberId];
+  if (!member) return;
+  const firstName = member.name.split(' ')[0];
+
+  // Find email
+  const emailEntry = Object.entries(EMAIL_TO_FAMILY).find(([e, id]) => id === memberId);
+  if (!emailEntry) return;
+  const email = emailEntry[0];
+
+  // Check if already emailed
+  db.ref(`triviaEmailed/${memberId}`).once('value', snap => {
+    if (snap.exists()) return; // already sent
+
+    // Only auto-send if EmailJS is configured
+    if (typeof emailjs !== 'undefined' && EMAILJS_PUBLIC_KEY && EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE_ID) {
+      const reviewUrl = `${window.location.origin}${window.location.pathname}?review=${memberId}`;
+      emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+        to_email: email,
+        to_name: member.name,
+        member_id: memberId,
+        review_url: reviewUrl,
+      }).then(() => {
+        db.ref(`triviaEmailed/${memberId}`).set({ emailedAt: firebase.database.ServerValue.TIMESTAMP, email });
+        console.log(`Auto-emailed ${member.name} at ${email}`);
+      }).catch(err => console.error('Auto-email failed:', err));
+    }
+  });
 }
 
 // =====================================================
 // ADMIN
 // =====================================================
 const ADMIN_EMAIL = 'leo.babauta@gmail.com';
+
+// EmailJS configuration — set up at https://www.emailjs.com
+// Free tier: 200 emails/month
+const EMAILJS_PUBLIC_KEY = ''; // TODO: Add your EmailJS public key
+const EMAILJS_SERVICE_ID = ''; // TODO: Add your EmailJS service ID
+const EMAILJS_TEMPLATE_ID = ''; // TODO: Add your EmailJS template ID
+
+// Initialize EmailJS
+if (typeof emailjs !== 'undefined' && EMAILJS_PUBLIC_KEY) {
+  emailjs.init(EMAILJS_PUBLIC_KEY);
+}
 
 function checkAdmin() {
   const email = (currentVisitorData && currentVisitorData.email) || '';
